@@ -35,7 +35,8 @@ import {
   Trash2,
   LogOut,
   Lock,
-  Mail
+  Mail,
+  Link2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -135,18 +136,26 @@ export default function App() {
     }
   ]);
   const [stores, setStores] = useState<Store[]>([
-    { id: '1', name: '성수본점', owner: '김철수', contact: '010-1234-5678', address: '서울시 성동구 성수동', joinDate: '2025.01.01' },
-    { id: '2', name: '강남역삼점', owner: '이영희', contact: '010-8765-4321', address: '서울시 강남구 역삼동', joinDate: '2025.02.15' },
+    { id: '1', name: '성수본점', owner: '김철수', address: '서울시 성동구 성수동', joinDate: '2025.01.01' },
+    { id: '2', name: '강남역삼점', owner: '이영희', address: '서울시 강남구 역삼동', joinDate: '2025.02.15' },
   ]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [newProduct, setNewProduct] = useState({ name: '', price: '' });
   const [newNotice, setNewNotice] = useState({ title: '', content: '', isImportant: false });
-  const [newStore, setNewStore] = useState({ name: '', owner: '', contact: '', address: '' });
+  const [newStore, setNewStore] = useState({ name: '', owner: '', address: '' });
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false);
+  const [isEditOrderModalOpen, setIsEditOrderModalOpen] = useState(false);
+  const [selectedOrderToEdit, setSelectedOrderToEdit] = useState<Order | null>(null);
+  const [manualOrderData, setManualOrderData] = useState<{ storeName: string; items: CartItem[] }>({
+    storeName: '',
+    items: []
+  });
+  const [manualOrderSearchQuery, setManualOrderSearchQuery] = useState('');
   const [statsPeriod, setStatsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [orderFilter, setOrderFilter] = useState<'all' | 'active'>('all');
   const [orderPeriod, setOrderPeriod] = useState<'all' | 'daily' | 'weekly' | 'monthly' | 'yearly'>('all');
@@ -207,7 +216,7 @@ export default function App() {
       status: 'pending'
     };
 
-    setOrders([newOrder, ...orders]);
+    setOrders(prev => [newOrder, ...prev]);
     setCart([]);
     setIsCartOpen(false);
     setShowOrderSuccess(true);
@@ -251,18 +260,62 @@ export default function App() {
       joinDate: new Date().toLocaleDateString('ko-KR')
     };
     setStores([...stores, store]);
-    setNewStore({ name: '', owner: '', contact: '', address: '' });
+    setNewStore({ name: '', owner: '', address: '' });
   };
 
   const handleUpdateStore = () => {
     if (!editingStoreId || !newStore.name || !newStore.owner) return;
     setStores(stores.map(s => s.id === editingStoreId ? { ...s, ...newStore } : s));
-    setNewStore({ name: '', owner: '', contact: '', address: '' });
+    setNewStore({ name: '', owner: '', address: '' });
     setEditingStoreId(null);
   };
 
   const handleDeleteStore = (id: string) => {
     setStores(stores.filter(s => s.id !== id));
+  };
+
+  const handleManualOrder = () => {
+    if (!manualOrderData.storeName || manualOrderData.items.length === 0) {
+      alert('가맹점과 품목을 선택해주세요.');
+      return;
+    }
+
+    const totalAmount = manualOrderData.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const newOrder: Order = {
+      id: `HQ-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      date: new Date().toLocaleDateString('ko-KR'),
+      timestamp: Date.now(),
+      storeName: manualOrderData.storeName,
+      items: manualOrderData.items,
+      totalAmount,
+      status: 'pending'
+    };
+
+    setOrders(prev => [newOrder, ...prev]);
+    setIsManualOrderModalOpen(false);
+    setManualOrderData({ storeName: '', items: [] });
+    setManualOrderSearchQuery('');
+    
+    // Show success toast
+    setShowOrderSuccess(true);
+    setTimeout(() => setShowOrderSuccess(false), 3000);
+  };
+
+  const handleCancelOrder = (orderId: string) => {
+    if (confirm('정말로 이 주문을 취소하시겠습니까?')) {
+      setOrders(prev => prev.map(order => 
+        order.id === orderId ? { ...order, status: 'cancelled' } : order
+      ));
+    }
+  };
+
+  const handleUpdateOrderItems = (orderId: string, items: CartItem[]) => {
+    const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, items, totalAmount } : order
+    ));
+    setIsEditOrderModalOpen(false);
+    setSelectedOrderToEdit(null);
   };
 
   const updateOrderStatus = (orderId: string, status: Order['status']) => {
@@ -272,15 +325,17 @@ export default function App() {
   };
 
   const hqStats = useMemo(() => {
-    const processingCount = orders.filter(o => o.status !== 'delivered').length;
-    return { processingCount };
+    const pendingCount = orders.filter(o => o.status === 'pending').length;
+    const processingCount = orders.filter(o => o.status === 'processing').length;
+    const totalSales = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+    return { pendingCount, processingCount, totalSales };
   }, [orders]);
 
   const filteredOrders = useMemo(() => {
     let result = orders;
 
     if (orderFilter === 'active') {
-      result = result.filter(o => o.status !== 'delivered');
+      result = result.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
     }
 
     const now = new Date();
@@ -371,10 +426,10 @@ export default function App() {
           className="w-full max-w-md bg-white rounded-3xl danggeun-shadow p-8 space-y-8"
         >
           <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-brand-red rounded-2xl flex items-center justify-center text-white text-3xl font-bold mx-auto danggeun-shadow">
-              F
+            <div className="w-16 h-16 bg-brand-red rounded-2xl flex items-center justify-center text-white mx-auto danggeun-shadow">
+              <Link2 size={32} strokeWidth={3} />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight pt-4">오필승 본부 시스템</h1>
+            <h1 className="text-2xl font-bold tracking-tight pt-4">체인ON본부</h1>
             <p className="text-gray-400 text-sm font-medium">가맹점 및 본사 통합 관리 솔루션</p>
           </div>
 
@@ -442,10 +497,10 @@ export default function App() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-brand-red rounded-lg flex items-center justify-center text-white font-bold">
-            F
+          <div className="w-8 h-8 bg-brand-red rounded-lg flex items-center justify-center text-white">
+            <Link2 size={18} strokeWidth={3} />
           </div>
-          <h1 className="text-lg font-bold tracking-tight">오필승 본부</h1>
+          <h1 className="text-lg font-bold tracking-tight">체인ON본부</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -609,42 +664,59 @@ export default function App() {
           <div className="space-y-6">
             {activeTab === 'hq_dashboard' ? (
               <div className="space-y-6">
-                {/* Top Grid */}
+                {/* Top Grid - Bento Style */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-2 flex flex-col justify-center">
-                    <p className="text-xs text-gray-500 font-bold uppercase">처리 중</p>
-                    <p className="text-3xl font-bold text-brand-red">{hqStats.processingCount}건</p>
-                    <button 
-                      onClick={() => { setOrderFilter('active'); setActiveTab('hq_orders'); }} 
-                      className="text-[10px] text-brand-red font-bold hover:underline text-left"
-                    >
-                      바로 확인하기
-                    </button>
+                  {/* Processing Status - Enhanced */}
+                  <div className="bg-white p-6 rounded-3xl danggeun-shadow space-y-4 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">처리 현황</p>
+                      <span className="px-2 py-0.5 bg-brand-red/10 text-brand-red text-[10px] font-bold rounded-full">실시간</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-500 font-bold">승인 대기</p>
+                        <p className="text-2xl font-black text-brand-red">{hqStats.pendingCount}<span className="text-xs ml-1">건</span></p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-500 font-bold">배송 준비</p>
+                        <p className="text-2xl font-black text-brand-black">{hqStats.processingCount}<span className="text-xs ml-1">건</span></p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <button 
+                        onClick={() => { setOrderFilter('active'); setActiveTab('hq_orders'); }} 
+                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-brand-red text-[10px] font-bold rounded-xl transition-all flex items-center justify-center gap-1"
+                      >
+                        주문 처리하러 가기 <ChevronRight size={12} />
+                      </button>
+                    </div>
                   </div>
                   
-                  {/* Recent Orders Summary (Compact) */}
-                  <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
+                  {/* Recent Orders Summary */}
+                  <div className="bg-white p-6 rounded-3xl danggeun-shadow space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-sm">최근 주문</h3>
+                      <h3 className="font-bold text-xs uppercase tracking-wider text-gray-400">최근 주문</h3>
                       <button 
                         onClick={() => { setOrderFilter('all'); setActiveTab('hq_orders'); }}
-                        className="text-[10px] font-bold text-brand-red hover:underline flex items-center gap-1"
+                        className="text-[10px] font-bold text-brand-red hover:underline"
                       >
-                        전체 보기 <ChevronRight size={12} />
+                        더보기
                       </button>
                     </div>
                     <div className="space-y-2">
                       {orders.length === 0 ? (
-                        <p className="text-center py-4 text-gray-400 text-xs">최근 주문이 없습니다.</p>
+                        <p className="text-center py-4 text-gray-400 text-[10px]">최근 주문이 없습니다.</p>
                       ) : (
-                        orders.slice(0, 3).map(order => (
-                          <div key={order.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        orders.slice(0, 4).map(order => (
+                          <div key={order.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all">
                             <div className="min-w-0">
                               <p className="text-[10px] font-bold text-brand-red truncate">{order.storeName}</p>
-                              <p className="text-xs font-bold truncate">{order.items[0].name}</p>
+                              <p className="text-[11px] font-bold text-gray-800 truncate">{order.items[0].name}</p>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-xs font-bold">{order.totalAmount.toLocaleString()}원</p>
+                              <p className="text-[11px] font-black">{order.totalAmount.toLocaleString()}원</p>
                             </div>
                           </div>
                         ))
@@ -747,6 +819,12 @@ export default function App() {
                     </div>
                     <div className="flex gap-2">
                       <button 
+                        onClick={() => setIsManualOrderModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-brand-black text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-all"
+                      >
+                        <Plus size={14} /> 수동 주문 등록
+                      </button>
+                      <button 
                         onClick={exportToExcel}
                         disabled={orders.length === 0}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 disabled:bg-gray-300 transition-all"
@@ -841,6 +919,9 @@ export default function App() {
                           {order.status === 'delivered' && (
                             <span className="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-xl">처리 완료</span>
                           )}
+                          {order.status === 'cancelled' && (
+                            <span className="px-4 py-2 bg-red-50 text-red-400 text-xs font-bold rounded-xl">주문 취소됨</span>
+                          )}
                         </div>
                       </div>
                       <div className="bg-gray-50 rounded-xl p-3 space-y-2">
@@ -852,7 +933,25 @@ export default function App() {
                         ))}
                       </div>
                       <div className="flex justify-between items-center pt-2">
-                        <p className="font-bold text-brand-red">{order.totalAmount.toLocaleString()}원</p>
+                        <div className="flex items-center gap-4">
+                          <p className="font-bold text-brand-red">{order.totalAmount.toLocaleString()}원</p>
+                          {order.status !== 'cancelled' && order.status !== 'delivered' && (
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => { setSelectedOrderToEdit(order); setIsEditOrderModalOpen(true); }}
+                                className="text-[10px] font-bold text-gray-400 hover:text-brand-black flex items-center gap-1"
+                              >
+                                <Edit2 size={12} /> 수량 수정
+                              </button>
+                              <button 
+                                onClick={() => handleCancelOrder(order.id)}
+                                className="text-[10px] font-bold text-gray-400 hover:text-brand-red flex items-center gap-1"
+                              >
+                                <Trash2 size={12} /> 주문 취소
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <button className="text-[10px] font-bold text-gray-400 hover:text-brand-black">상세 내역 보기</button>
                       </div>
                     </div>
@@ -998,13 +1097,6 @@ export default function App() {
                         />
                         <input 
                           type="text" 
-                          placeholder="연락처"
-                          className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm"
-                          value={newStore.contact}
-                          onChange={(e) => setNewStore({ ...newStore, contact: e.target.value })}
-                        />
-                        <input 
-                          type="text" 
                           placeholder="주소"
                           className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm"
                           value={newStore.address}
@@ -1016,7 +1108,7 @@ export default function App() {
                           <button 
                             onClick={() => {
                               setEditingStoreId(null);
-                              setNewStore({ name: '', owner: '', contact: '', address: '' });
+                              setNewStore({ name: '', owner: '', address: '' });
                             }}
                             className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
                           >
@@ -1044,7 +1136,7 @@ export default function App() {
                                 <h4 className="font-bold text-lg">{store.name}</h4>
                                 <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{store.joinDate} 가입</span>
                               </div>
-                              <p className="text-sm text-gray-500">{store.owner} 점주 | {store.contact}</p>
+                              <p className="text-sm text-gray-500">{store.owner} 점주</p>
                               <p className="text-xs text-gray-400">{store.address}</p>
                             </div>
                           </div>
@@ -1255,12 +1347,217 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Manual Order Modal */}
+      <AnimatePresence>
+        {isManualOrderModalOpen && (
+          <React.Fragment key="manual-order-modal-fragment">
+            <motion.div 
+              key="manual-order-backdrop"
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => {
+                setIsManualOrderModalOpen(false);
+                setManualOrderSearchQuery('');
+              }} 
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]" 
+            />
+            <motion.div 
+              key="manual-order-content"
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }} 
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-lg bg-white rounded-3xl p-6 z-[80] shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold">수동 주문 등록</h3>
+                <button 
+                  onClick={() => {
+                    setIsManualOrderModalOpen(false);
+                    setManualOrderSearchQuery('');
+                  }} 
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500">가맹점 선택</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm font-medium"
+                    value={manualOrderData.storeName}
+                    onChange={(e) => setManualOrderData({ ...manualOrderData, storeName: e.target.value })}
+                  >
+                    <option value="">가맹점을 선택하세요</option>
+                    {stores.map(store => (
+                      <option key={store.id} value={store.name}>{store.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-500">품목 추가</label>
+                    <div className="relative w-40">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
+                      <input 
+                        type="text" 
+                        placeholder="품목 검색"
+                        className="w-full pl-7 pr-2 py-1.5 bg-gray-50 rounded-lg text-[10px] font-medium outline-none focus:ring-1 focus:ring-brand-red/20 transition-all"
+                        value={manualOrderSearchQuery}
+                        onChange={(e) => setManualOrderSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-1">
+                    {products
+                      .filter(p => p.name.toLowerCase().includes(manualOrderSearchQuery.toLowerCase()))
+                      .map(product => {
+                        const existingItem = manualOrderData.items.find(i => i.id === product.id);
+                        return (
+                          <div key={product.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                            <span className="text-xs font-bold">{product.name}</span>
+                            <div className="flex items-center gap-3">
+                              {existingItem ? (
+                                <div className="flex items-center gap-2 bg-white rounded-lg px-2 py-1 shadow-sm">
+                                  <button 
+                                    onClick={() => {
+                                      const newItems = existingItem.quantity > 1 
+                                        ? manualOrderData.items.map(i => i.id === product.id ? { ...i, quantity: i.quantity - 1 } : i)
+                                        : manualOrderData.items.filter(i => i.id !== product.id);
+                                      setManualOrderData({ ...manualOrderData, items: newItems });
+                                    }}
+                                    className="p-1 text-brand-red"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                  <span className="text-xs font-bold w-4 text-center">{existingItem.quantity}</span>
+                                  <button 
+                                    onClick={() => {
+                                      const newItems = manualOrderData.items.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+                                      setManualOrderData({ ...manualOrderData, items: newItems });
+                                    }}
+                                    className="p-1 text-brand-red"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => setManualOrderData({ ...manualOrderData, items: [...manualOrderData.items, { ...product, quantity: 1 }] })}
+                                  className="px-3 py-1 bg-brand-red text-white text-[10px] font-bold rounded-lg"
+                                >
+                                  추가
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {products.filter(p => p.name.toLowerCase().includes(manualOrderSearchQuery.toLowerCase())).length === 0 && (
+                      <p className="text-center py-4 text-gray-400 text-[10px]">검색 결과가 없습니다.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm font-bold text-gray-500">총 주문 금액</span>
+                  <span className="text-lg font-black text-brand-red">
+                    {manualOrderData.items.reduce((sum, i) => sum + i.price * i.quantity, 0).toLocaleString()}원
+                  </span>
+                </div>
+                <button 
+                  onClick={handleManualOrder}
+                  disabled={!manualOrderData.storeName || manualOrderData.items.length === 0}
+                  className="w-full py-4 bg-brand-red text-white font-bold rounded-2xl shadow-lg shadow-brand-red/20 hover:scale-[1.02] active:scale-95 transition-all disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
+                >
+                  주문 등록 완료
+                </button>
+              </div>
+            </motion.div>
+          </React.Fragment>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Order Modal */}
+      <AnimatePresence>
+        {isEditOrderModalOpen && selectedOrderToEdit && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditOrderModalOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-sm bg-white rounded-3xl p-6 z-[80] shadow-2xl space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold">주문 수량 수정</h3>
+                <button onClick={() => setIsEditOrderModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+              </div>
+              
+              <div className="space-y-4 max-h-64 overflow-y-auto p-1">
+                {selectedOrderToEdit.items.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate">{item.name}</p>
+                      <p className="text-[10px] text-gray-400">{item.price.toLocaleString()}원</p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white rounded-lg px-2 py-1 shadow-sm">
+                      <button 
+                        onClick={() => {
+                          const newItems = item.quantity > 1 
+                            ? selectedOrderToEdit.items.map(i => i.id === item.id ? { ...i, quantity: i.quantity - 1 } : i)
+                            : selectedOrderToEdit.items.filter(i => i.id !== item.id);
+                          setSelectedOrderToEdit({ ...selectedOrderToEdit, items: newItems });
+                        }}
+                        className="p-1 text-brand-red"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                      <button 
+                        onClick={() => {
+                          const newItems = selectedOrderToEdit.items.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+                          setSelectedOrderToEdit({ ...selectedOrderToEdit, items: newItems });
+                        }}
+                        className="p-1 text-brand-red"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm font-bold text-gray-500">수정 후 총 금액</span>
+                  <span className="text-lg font-black text-brand-red">
+                    {selectedOrderToEdit.items.reduce((sum, i) => sum + i.price * i.quantity, 0).toLocaleString()}원
+                  </span>
+                </div>
+                <button 
+                  onClick={() => handleUpdateOrderItems(selectedOrderToEdit.id, selectedOrderToEdit.items)}
+                  className="w-full py-4 bg-brand-red text-white font-bold rounded-2xl shadow-lg shadow-brand-red/20 hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                  수정 완료
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Success Toast */}
       <AnimatePresence>
         {showOrderSuccess && (
-          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-brand-black text-white px-6 py-3 rounded-full flex items-center gap-3 z-[60] shadow-xl">
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: 50, opacity: 0 }} 
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-brand-black text-white px-6 py-3 rounded-full flex items-center gap-3 z-[100] shadow-xl"
+          >
             <CheckCircle2 className="text-brand-yellow" size={20} />
-            <span className="font-bold">발주가 정상적으로 완료되었습니다!</span>
+            <span className="font-bold">주문이 정상적으로 등록되었습니다!</span>
           </motion.div>
         )}
       </AnimatePresence>

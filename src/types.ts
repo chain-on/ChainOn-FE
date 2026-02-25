@@ -21,7 +21,7 @@ export interface Order {
   storeName: string;
   items: CartItem[];
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 }
 
 export interface Notice {
@@ -37,7 +37,6 @@ export interface Store {
   id: string;
   name: string;
   owner: string;
-  contact: string;
   address: string;
   joinDate: string;
 }
