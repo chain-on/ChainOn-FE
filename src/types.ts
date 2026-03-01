@@ -39,6 +39,8 @@ export interface Store {
   owner: string;
   address: string;
   joinDate: string;
+  loginId: string;
+  password?: string;
 }
 
 export const MOCK_PRODUCTS: Product[] = [

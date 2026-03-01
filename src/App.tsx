@@ -136,13 +136,13 @@ export default function App() {
     }
   ]);
   const [stores, setStores] = useState<Store[]>([
-    { id: '1', name: '성수본점', owner: '김철수', address: '서울시 성동구 성수동', joinDate: '2025.01.01' },
-    { id: '2', name: '강남역삼점', owner: '이영희', address: '서울시 강남구 역삼동', joinDate: '2025.02.15' },
+    { id: '1', name: '성수본점', owner: '김철수', address: '서울시 성동구 성수동', joinDate: '2025.01.01', loginId: 'seongsu01', password: 'password123' },
+    { id: '2', name: '강남역삼점', owner: '이영희', address: '서울시 강남구 역삼동', joinDate: '2025.02.15', loginId: 'gangnam02', password: 'password123' },
   ]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [newProduct, setNewProduct] = useState({ name: '', price: '' });
   const [newNotice, setNewNotice] = useState({ title: '', content: '', isImportant: false });
-  const [newStore, setNewStore] = useState({ name: '', owner: '', address: '' });
+  const [newStore, setNewStore] = useState({ name: '', owner: '', address: '', loginId: '', password: '' });
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -253,20 +253,23 @@ export default function App() {
   };
 
   const handleAddStore = () => {
-    if (!newStore.name || !newStore.owner) return;
+    if (!newStore.name || !newStore.owner || !newStore.loginId || !newStore.password) {
+      alert('가맹점명, 점주명, 아이디, 비밀번호는 필수입니다.');
+      return;
+    }
     const store: Store = {
       id: Math.random().toString(36).substr(2, 9),
       ...newStore,
       joinDate: new Date().toLocaleDateString('ko-KR')
     };
     setStores([...stores, store]);
-    setNewStore({ name: '', owner: '', address: '' });
+    setNewStore({ name: '', owner: '', address: '', loginId: '', password: '' });
   };
 
   const handleUpdateStore = () => {
-    if (!editingStoreId || !newStore.name || !newStore.owner) return;
+    if (!editingStoreId || !newStore.name || !newStore.owner || !newStore.loginId) return;
     setStores(stores.map(s => s.id === editingStoreId ? { ...s, ...newStore } : s));
-    setNewStore({ name: '', owner: '', address: '' });
+    setNewStore({ name: '', owner: '', address: '', loginId: '', password: '' });
     setEditingStoreId(null);
   };
 
@@ -1102,13 +1105,27 @@ export default function App() {
                           value={newStore.address}
                           onChange={(e) => setNewStore({ ...newStore, address: e.target.value })}
                         />
+                        <input 
+                          type="text" 
+                          placeholder="아이디"
+                          className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm"
+                          value={newStore.loginId}
+                          onChange={(e) => setNewStore({ ...newStore, loginId: e.target.value })}
+                        />
+                        <input 
+                          type="password" 
+                          placeholder={editingStoreId ? "비밀번호 (변경 시 입력)" : "비밀번호"}
+                          className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm"
+                          value={newStore.password}
+                          onChange={(e) => setNewStore({ ...newStore, password: e.target.value })}
+                        />
                       </div>
                       <div className="flex gap-2">
                         {editingStoreId && (
                           <button 
                             onClick={() => {
                               setEditingStoreId(null);
-                              setNewStore({ name: '', owner: '', address: '' });
+                              setNewStore({ name: '', owner: '', address: '', loginId: '', password: '' });
                             }}
                             className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all"
                           >
@@ -1144,7 +1161,13 @@ export default function App() {
                             <button 
                               onClick={() => {
                                 setEditingStoreId(store.id);
-                                setNewStore({ name: store.name, owner: store.owner, contact: store.contact, address: store.address });
+                                setNewStore({ 
+                                  name: store.name, 
+                                  owner: store.owner, 
+                                  address: store.address, 
+                                  loginId: store.loginId, 
+                                  password: '' 
+                                });
                               }}
                               className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-blue-500 transition-colors"
                             >
