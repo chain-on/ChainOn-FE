@@ -58,62 +58,15 @@ const ProductIcon = () => <Box size={24} />;
 
 // Mock data for analytics
 const MOCK_STATS = {
-  daily: [
-    { name: '월', value: 4500000 },
-    { name: '화', value: 5200000 },
-    { name: '수', value: 4800000 },
-    { name: '목', value: 6100000 },
-    { name: '금', value: 7500000 },
-    { name: '토', value: 8200000 },
-    { name: '일', value: 6800000 },
-  ],
-  weekly: [
-    { name: '1주', value: 32000000 },
-    { name: '2주', value: 35000000 },
-    { name: '3주', value: 31000000 },
-    { name: '4주', value: 42000000 },
-  ],
-  monthly: [
-    { name: '1월', value: 120000000 },
-    { name: '2월', value: 145000000 },
-    { name: '3월', value: 130000000 },
-    { name: '4월', value: 155000000 },
-  ],
-  yearly: [
-    { name: '2022', value: 1250000000 },
-    { name: '2023', value: 1480000000 },
-    { name: '2024', value: 1620000000 },
-    { name: '2025', value: 1850000000 },
-  ],
+  daily: [],
+  weekly: [],
+  monthly: [],
+  yearly: [],
   rankings: {
-    daily: [
-      { name: '강남역삼점', value: 1250000 },
-      { name: '홍대입구점', value: 1100000 },
-      { name: '성수본점', value: 980000 },
-      { name: '판교테크노점', value: 850000 },
-      { name: '부산해운대점', value: 720000 },
-    ],
-    weekly: [
-      { name: '강남역삼점', value: 8500000 },
-      { name: '성수본점', value: 7800000 },
-      { name: '홍대입구점', value: 7200000 },
-      { name: '부산해운대점', value: 6500000 },
-      { name: '판교테크노점', value: 5800000 },
-    ],
-    monthly: [
-      { name: '성수본점', value: 35000000 },
-      { name: '강남역삼점', value: 32000000 },
-      { name: '홍대입구점', value: 28000000 },
-      { name: '판교테크노점', value: 25000000 },
-      { name: '부산해운대점', value: 22000000 },
-    ],
-    yearly: [
-      { name: '성수본점', value: 420000000 },
-      { name: '강남역삼점', value: 380000000 },
-      { name: '홍대입구점', value: 310000000 },
-      { name: '판교테크노점', value: 290000000 },
-      { name: '부산해운대점', value: 250000000 },
-    ]
+    daily: [],
+    weekly: [],
+    monthly: [],
+    yearly: [],
   }
 };
 
@@ -127,17 +80,24 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [notices, setNotices] = useState<Notice[]>([
     {
-      id: '1',
-      title: '설 연휴 배송 일정 안내',
-      content: '설 연휴 기간 동안 배송이 일시 중단됩니다. 미리 발주 부탁드립니다.',
-      date: '2026.02.10',
-      timestamp: Date.now() - 100000000,
+      id: 'notice-1',
+      title: '가맹점 발주 가이드 안내',
+      content: '새로운 발주 시스템 이용 방법입니다. 매주 월요일 오전 10시까지 발주를 완료해 주세요.',
+      date: '2024-03-01',
+      timestamp: Date.now(),
       isImportant: true
     }
   ]);
   const [stores, setStores] = useState<Store[]>([
-    { id: '1', name: '성수본점', owner: '김철수', address: '서울시 성동구 성수동', joinDate: '2025.01.01', loginId: 'seongsu01', password: 'password123' },
-    { id: '2', name: '강남역삼점', owner: '이영희', address: '서울시 강남구 역삼동', joinDate: '2025.02.15', loginId: 'gangnam02', password: 'password123' },
+    { 
+      id: 'test-store-1', 
+      name: '강남역삼점', 
+      owner: '김철수', 
+      address: '서울시 강남구 테헤란로 123', 
+      joinDate: '2024-01-01', 
+      loginId: 'store', 
+      password: '1234' 
+    }
   ]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [newProduct, setNewProduct] = useState({ name: '', price: '' });
@@ -145,7 +105,19 @@ export default function App() {
   const [newStore, setNewStore] = useState({ name: '', owner: '', address: '', loginId: '', password: '' });
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>([
+    {
+      id: 'ORD-TEST001',
+      date: '2024년 3월 1일',
+      timestamp: Date.now() - 86400000,
+      storeName: '강남역삼점',
+      items: [
+        { id: '1', name: '원두 (다크 블렌드)', category: '커피', price: 25000, unit: '1kg', image: '', stock: 100, quantity: 2 }
+      ],
+      totalAmount: 50000,
+      status: 'pending'
+    }
+  ]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false);
@@ -551,51 +523,62 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredProducts.map(product => {
-                    const cartItem = cart.find(item => item.id === product.id);
-                    const isInCart = !!cartItem;
+                {filteredProducts.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-12 text-center space-y-4 danggeun-shadow">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
+                      <Search size={32} />
+                    </div>
+                    <p className="text-gray-500">
+                      {searchQuery ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredProducts.map(product => {
+                      const cartItem = cart.find(item => item.id === product.id);
+                      const isInCart = !!cartItem;
 
-                    return (
-                      <motion.div 
-                        layout
-                        key={product.id}
-                        className={`bg-white rounded-2xl overflow-hidden danggeun-shadow group border-2 transition-all ${
-                          isInCart ? 'border-brand-red/20' : 'border-transparent'
-                        }`}
-                      >
-                        <div className="p-4 flex gap-4 items-center">
-                          <div className={`w-16 h-16 rounded-xl flex items-center justify-center shrink-0 ${
-                            isInCart ? 'bg-brand-red/10 text-brand-red' : 'bg-gray-100 text-gray-400'
-                          }`}>
-                            <ProductIcon />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              {isInCart && (
-                                <span className="flex items-center gap-0.5 text-[10px] font-bold text-brand-red bg-brand-red/10 px-1.5 py-0.5 rounded">
-                                  <CheckCircle2 size={10} /> 담김 {cartItem.quantity}
-                                </span>
-                              )}
+                      return (
+                        <motion.div 
+                          layout
+                          key={product.id}
+                          className={`bg-white rounded-2xl overflow-hidden danggeun-shadow group border-2 transition-all ${
+                            isInCart ? 'border-brand-red/20' : 'border-transparent'
+                          }`}
+                        >
+                          <div className="p-4 flex gap-4 items-center">
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center shrink-0 ${
+                              isInCart ? 'bg-brand-red/10 text-brand-red' : 'bg-gray-100 text-gray-400'
+                            }`}>
+                              <ProductIcon />
                             </div>
-                            <h3 className="font-bold text-gray-800 truncate">{product.name}</h3>
-                            <p className="text-sm font-bold text-gray-900">{product.price.toLocaleString()}원</p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                {isInCart && (
+                                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-brand-red bg-brand-red/10 px-1.5 py-0.5 rounded">
+                                    <CheckCircle2 size={10} /> 담김 {cartItem.quantity}
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="font-bold text-gray-800 truncate">{product.name}</h3>
+                              <p className="text-sm font-bold text-gray-900">{product.price.toLocaleString()}원</p>
+                            </div>
+                            <button 
+                              onClick={() => addToCart(product)}
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${
+                                isInCart 
+                                  ? 'bg-brand-red text-white' 
+                                  : 'bg-brand-yellow text-brand-black hover:bg-brand-yellow/90'
+                              }`}
+                            >
+                              <Plus size={20} />
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => addToCart(product)}
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${
-                              isInCart 
-                                ? 'bg-brand-red text-white' 
-                                : 'bg-brand-yellow text-brand-black hover:bg-brand-yellow/90'
-                            }`}
-                          >
-                            <Plus size={20} />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : activeTab === 'orders' ? (
               <div className="space-y-4">
@@ -644,18 +627,27 @@ export default function App() {
               <div className="space-y-4">
                 <h2 className="text-xl font-bold mb-4">공지사항</h2>
                 <div className="space-y-4">
-                  {notices.map(notice => (
-                    <div key={notice.id} className="bg-white rounded-2xl p-5 danggeun-shadow space-y-2 border-l-4 border-transparent hover:border-brand-red transition-all">
-                      <div className="flex items-center gap-2">
-                        {notice.isImportant && (
-                          <span className="bg-brand-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded">중요</span>
-                        )}
-                        <span className="text-xs text-gray-400">{notice.date}</span>
+                  {notices.length === 0 ? (
+                    <div className="bg-white rounded-2xl p-12 text-center space-y-4 danggeun-shadow">
+                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
+                        <Bell size={32} />
                       </div>
-                      <h3 className="font-bold text-lg">{notice.title}</h3>
-                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{notice.content}</p>
+                      <p className="text-gray-500">등록된 공지사항이 없습니다.</p>
                     </div>
-                  ))}
+                  ) : (
+                    notices.map(notice => (
+                      <div key={notice.id} className="bg-white rounded-2xl p-5 danggeun-shadow space-y-2 border-l-4 border-transparent hover:border-brand-red transition-all">
+                        <div className="flex items-center gap-2">
+                          {notice.isImportant && (
+                            <span className="bg-brand-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded">중요</span>
+                          )}
+                          <span className="text-xs text-gray-400">{notice.date}</span>
+                        </div>
+                        <h3 className="font-bold text-lg">{notice.title}</h3>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{notice.content}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             ) : null}
@@ -748,25 +740,29 @@ export default function App() {
                       </div>
                     </div>
                     
-                    <div className="h-[200px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={MOCK_STATS[statsPeriod]}>
-                          <defs>
-                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#FF0000" stopOpacity={0.1}/>
-                              <stop offset="95%" stopColor="#FF0000" stopOpacity={0}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#999'}} />
-                          <YAxis hide />
-                          <Tooltip 
-                            contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
-                            formatter={(value: number) => [`${value.toLocaleString()}원`, '매출']}
-                          />
-                          <Area type="monotone" dataKey="value" stroke="#FF0000" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                    <div className="h-[200px] w-full flex items-center justify-center">
+                      {MOCK_STATS[statsPeriod].length === 0 ? (
+                        <p className="text-gray-400 text-xs font-bold">데이터가 없습니다.</p>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={MOCK_STATS[statsPeriod]}>
+                            <defs>
+                              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#FF0000" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#FF0000" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#999'}} />
+                            <YAxis hide />
+                            <Tooltip 
+                              contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
+                              formatter={(value: number) => [`${value.toLocaleString()}원`, '매출']}
+                            />
+                            <Area type="monotone" dataKey="value" stroke="#FF0000" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
                   </div>
 
@@ -779,30 +775,36 @@ export default function App() {
                       <span className="text-[10px] text-gray-400 font-bold uppercase">{statsPeriod} TOP 5</span>
                     </div>
                     <div className="space-y-4">
-                      {MOCK_STATS.rankings[statsPeriod].map((item, idx) => (
-                        <div key={item.name} className="flex items-center gap-4">
-                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
-                            idx === 0 ? 'bg-brand-yellow text-brand-black' : 
-                            idx === 1 ? 'bg-gray-200 text-gray-600' : 
-                            idx === 2 ? 'bg-orange-100 text-orange-600' : 'text-gray-400'
-                          }`}>
-                            {idx + 1}
-                          </span>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-sm font-bold">{item.name}</span>
-                              <span className="text-sm font-bold">{item.value.toLocaleString()}원</span>
-                            </div>
-                            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${(item.value / MOCK_STATS.rankings[statsPeriod][0].value) * 100}%` }}
-                                className={`h-full rounded-full ${idx === 0 ? 'bg-brand-red' : 'bg-brand-black'}`}
-                              />
+                      {MOCK_STATS.rankings[statsPeriod].length === 0 ? (
+                        <div className="h-[200px] flex items-center justify-center text-gray-400 text-xs font-bold">
+                          데이터가 없습니다.
+                        </div>
+                      ) : (
+                        MOCK_STATS.rankings[statsPeriod].map((item, idx) => (
+                          <div key={item.name} className="flex items-center gap-4">
+                            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
+                              idx === 0 ? 'bg-brand-yellow text-brand-black' : 
+                              idx === 1 ? 'bg-gray-200 text-gray-600' : 
+                              idx === 2 ? 'bg-orange-100 text-orange-600' : 'text-gray-400'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm font-bold">{item.name}</span>
+                                <span className="text-sm font-bold">{item.value.toLocaleString()}원</span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(item.value / MOCK_STATS.rankings[statsPeriod][0].value) * 100}%` }}
+                                  className={`h-full rounded-full ${idx === 0 ? 'bg-brand-red' : 'bg-brand-black'}`}
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1006,22 +1008,28 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {products.map(product => (
-                        <div key={product.id} className="bg-white p-4 rounded-2xl danggeun-shadow flex justify-between items-center">
-                          <div>
-                            <p className="font-bold text-gray-800">{product.name}</p>
-                            <p className="text-sm text-gray-500">{product.price.toLocaleString()}원</p>
+                    {products.length === 0 ? (
+                      <div className="bg-white rounded-2xl p-12 text-center text-gray-400 danggeun-shadow">
+                        등록된 품목이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {products.map(product => (
+                          <div key={product.id} className="bg-white p-4 rounded-2xl danggeun-shadow flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-gray-800">{product.name}</p>
+                              <p className="text-sm text-gray-500">{product.price.toLocaleString()}원</p>
+                            </div>
+                            <button 
+                              onClick={() => setProducts(products.filter(p => p.id !== product.id))}
+                              className="p-2 text-gray-400 hover:text-brand-red transition-colors"
+                            >
+                              <X size={18} />
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => setProducts(products.filter(p => p.id !== product.id))}
-                            className="p-2 text-gray-400 hover:text-brand-red transition-colors"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : systemTab === 'notices' ? (
                   <div className="space-y-6">
@@ -1058,26 +1066,32 @@ export default function App() {
                       </button>
                     </div>
 
-                    <div className="space-y-4">
-                      {notices.map(notice => (
-                        <div key={notice.id} className="bg-white p-5 rounded-2xl danggeun-shadow space-y-2 relative group">
-                          <div className="flex items-center gap-2">
-                            {notice.isImportant && (
-                              <span className="bg-brand-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded">중요</span>
-                            )}
-                            <span className="text-xs text-gray-400">{notice.date}</span>
+                    {notices.length === 0 ? (
+                      <div className="bg-white rounded-2xl p-12 text-center text-gray-400 danggeun-shadow">
+                        등록된 공지사항이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {notices.map(notice => (
+                          <div key={notice.id} className="bg-white p-5 rounded-2xl danggeun-shadow space-y-2 relative group">
+                            <div className="flex items-center gap-2">
+                              {notice.isImportant && (
+                                <span className="bg-brand-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded">중요</span>
+                              )}
+                              <span className="text-xs text-gray-400">{notice.date}</span>
+                            </div>
+                            <h3 className="font-bold text-lg">{notice.title}</h3>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{notice.content}</p>
+                            <button 
+                              onClick={() => setNotices(notices.filter(n => n.id !== notice.id))}
+                              className="absolute top-4 right-4 p-2 text-gray-300 hover:text-brand-red opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <X size={18} />
+                            </button>
                           </div>
-                          <h3 className="font-bold text-lg">{notice.title}</h3>
-                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{notice.content}</p>
-                          <button 
-                            onClick={() => setNotices(notices.filter(n => n.id !== notice.id))}
-                            className="absolute top-4 right-4 p-2 text-gray-300 hover:text-brand-red opacity-0 group-hover:opacity-100 transition-all"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -1141,48 +1155,54 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
-                      {stores.map(store => (
-                        <div key={store.id} className="bg-white p-5 rounded-2xl danggeun-shadow flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-brand-red/10 text-brand-red rounded-xl flex items-center justify-center">
-                              <StoreIcon size={24} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-lg">{store.name}</h4>
-                                <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{store.joinDate} 가입</span>
+                    {stores.length === 0 ? (
+                      <div className="bg-white rounded-2xl p-12 text-center text-gray-400 danggeun-shadow">
+                        등록된 가맹점이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {stores.map(store => (
+                          <div key={store.id} className="bg-white p-5 rounded-2xl danggeun-shadow flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-brand-red/10 text-brand-red rounded-xl flex items-center justify-center">
+                                <StoreIcon size={24} />
                               </div>
-                              <p className="text-sm text-gray-500">{store.owner} 점주</p>
-                              <p className="text-xs text-gray-400">{store.address}</p>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-lg">{store.name}</h4>
+                                  <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{store.joinDate} 가입</span>
+                                </div>
+                                <p className="text-sm text-gray-500">{store.owner} 점주</p>
+                                <p className="text-xs text-gray-400">{store.address}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                              <button 
+                                onClick={() => {
+                                  setEditingStoreId(store.id);
+                                  setNewStore({ 
+                                    name: store.name, 
+                                    owner: store.owner, 
+                                    address: store.address, 
+                                    loginId: store.loginId, 
+                                    password: '' 
+                                  });
+                                }}
+                                className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-blue-500 transition-colors"
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteStore(store.id)}
+                                className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-brand-red transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
                             </div>
                           </div>
-                          <div className="flex gap-2 w-full sm:w-auto">
-                            <button 
-                              onClick={() => {
-                                setEditingStoreId(store.id);
-                                setNewStore({ 
-                                  name: store.name, 
-                                  owner: store.owner, 
-                                  address: store.address, 
-                                  loginId: store.loginId, 
-                                  password: '' 
-                                });
-                              }}
-                              className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteStore(store.id)}
-                              className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-brand-red transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
