@@ -58,15 +58,64 @@ const ProductIcon = () => <Box size={24} />;
 
 // Mock data for analytics
 const MOCK_STATS = {
-  daily: [],
-  weekly: [],
-  monthly: [],
-  yearly: [],
+  daily: [
+    { name: '3/17', value: 1250000 },
+    { name: '3/18', value: 1420000 },
+    { name: '3/19', value: 1180000 },
+    { name: '3/20', value: 1650000 },
+    { name: '3/21', value: 2100000 },
+    { name: '3/22', value: 1950000 },
+    { name: '3/23', value: 1350000 },
+  ],
+  weekly: [
+    { name: '2월 4주', value: 8500000 },
+    { name: '3월 1주', value: 9200000 },
+    { name: '3월 2주', value: 8800000 },
+    { name: '3월 3주', value: 10500000 },
+  ],
+  monthly: [
+    { name: '10월', value: 32000000 },
+    { name: '11월', value: 35000000 },
+    { name: '12월', value: 42000000 },
+    { name: '1월', value: 38000000 },
+    { name: '2월', value: 36000000 },
+    { name: '3월', value: 41000000 },
+  ],
+  yearly: [
+    { name: '2021', value: 380000000 },
+    { name: '2022', value: 420000000 },
+    { name: '2023', value: 480000000 },
+    { name: '2024', value: 520000000 },
+  ],
   rankings: {
-    daily: [],
-    weekly: [],
-    monthly: [],
-    yearly: [],
+    daily: [
+      { name: '강남역삼점', value: 450000 },
+      { name: '홍대입구점', value: 380000 },
+      { name: '성수본점', value: 320000 },
+      { name: '부산해운대점', value: 280000 },
+      { name: '판교테크노점', value: 250000 },
+    ],
+    weekly: [
+      { name: '홍대입구점', value: 3200000 },
+      { name: '강남역삼점', value: 2950000 },
+      { name: '성수본점', value: 2800000 },
+      { name: '가로수길점', value: 2400000 },
+      { name: '여의도IFC점', value: 2100000 },
+    ],
+    monthly: [
+      { name: '성수본점', value: 12500000 },
+      { name: '홍대입구점', value: 11800000 },
+      { name: '강남역삼점', value: 11200000 },
+      { name: '부산해운대점', value: 9800000 },
+      { name: '제주애월점', value: 8500000 },
+    ],
+    yearly: [
+      { name: '성수본점', value: 152000000 },
+      { name: '강남역삼점', value: 145000000 },
+      { name: '홍대입구점', value: 138000000 },
+      { name: '판교테크노점', value: 122000000 },
+      { name: '광화문점', value: 115000000 },
+    ],
   }
 };
 
@@ -401,10 +450,15 @@ export default function App() {
           className="w-full max-w-md bg-white rounded-3xl danggeun-shadow p-8 space-y-8"
         >
           <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-brand-red rounded-2xl flex items-center justify-center text-white mx-auto danggeun-shadow">
-              <Link2 size={32} strokeWidth={3} />
+            <div className="mx-auto flex justify-center">
+              <img 
+                src="/logo.png" 
+                alt="체인ON 로고" 
+                className="w-24 h-auto rounded-2xl danggeun-shadow"
+                referrerPolicy="no-referrer"
+              />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight pt-4">체인ON본부</h1>
+            <h1 className="text-2xl font-bold tracking-tight pt-2">체인ON본부</h1>
             <p className="text-gray-400 text-sm font-medium">가맹점 및 본사 통합 관리 솔루션</p>
           </div>
 
@@ -472,9 +526,12 @@ export default function App() {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-brand-red rounded-lg flex items-center justify-center text-white">
-            <Link2 size={18} strokeWidth={3} />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="로고" 
+            className="w-8 h-8 rounded-lg object-cover"
+            referrerPolicy="no-referrer"
+          />
           <h1 className="text-lg font-bold tracking-tight">체인ON본부</h1>
         </div>
         
@@ -724,9 +781,12 @@ export default function App() {
                   {/* Analytics Chart (Smaller) */}
                   <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-6">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg flex items-center gap-2">
-                        <BarChart3 size={20} className="text-brand-red" /> 매출 추이
-                      </h3>
+                      <div>
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                          <BarChart3 size={20} className="text-brand-red" /> 매출 추이
+                        </h3>
+                        <p className="text-[10px] text-gray-400 mt-0.5 font-medium">* 매출은 발주 주문 기준으로 통계됩니다</p>
+                      </div>
                       <div className="flex bg-gray-100 p-1 rounded-lg">
                         {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
                           <button 
@@ -769,9 +829,12 @@ export default function App() {
                   {/* Store Sales Ranking */}
                   <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg flex items-center gap-2">
-                        <TrendingUp size={20} className="text-brand-red" /> 지점 매출 랭킹
-                      </h3>
+                      <div>
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                          <TrendingUp size={20} className="text-brand-red" /> 지점 매출 랭킹
+                        </h3>
+                        <p className="text-[10px] text-gray-400 mt-0.5 font-medium">* 매출은 발주 주문 기준으로 통계됩니다</p>
+                      </div>
                       <span className="text-[10px] text-gray-400 font-bold uppercase">{statsPeriod} TOP 5</span>
                     </div>
                     <div className="space-y-4">
