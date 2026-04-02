@@ -56,66 +56,17 @@ import { Product, CartItem, Order, MOCK_PRODUCTS, UserRole, Notice, Store } from
 
 const ProductIcon = () => <Box size={24} />;
 
-// Mock data for analytics
+// Mock data for analytics (Empty by default)
 const MOCK_STATS = {
-  daily: [
-    { name: '3/17', value: 1250000 },
-    { name: '3/18', value: 1420000 },
-    { name: '3/19', value: 1180000 },
-    { name: '3/20', value: 1650000 },
-    { name: '3/21', value: 2100000 },
-    { name: '3/22', value: 1950000 },
-    { name: '3/23', value: 1350000 },
-  ],
-  weekly: [
-    { name: '2월 4주', value: 8500000 },
-    { name: '3월 1주', value: 9200000 },
-    { name: '3월 2주', value: 8800000 },
-    { name: '3월 3주', value: 10500000 },
-  ],
-  monthly: [
-    { name: '10월', value: 32000000 },
-    { name: '11월', value: 35000000 },
-    { name: '12월', value: 42000000 },
-    { name: '1월', value: 38000000 },
-    { name: '2월', value: 36000000 },
-    { name: '3월', value: 41000000 },
-  ],
-  yearly: [
-    { name: '2021', value: 380000000 },
-    { name: '2022', value: 420000000 },
-    { name: '2023', value: 480000000 },
-    { name: '2024', value: 520000000 },
-  ],
+  daily: [],
+  weekly: [],
+  monthly: [],
+  yearly: [],
   rankings: {
-    daily: [
-      { name: '강남역삼점', value: 450000 },
-      { name: '홍대입구점', value: 380000 },
-      { name: '성수본점', value: 320000 },
-      { name: '부산해운대점', value: 280000 },
-      { name: '판교테크노점', value: 250000 },
-    ],
-    weekly: [
-      { name: '홍대입구점', value: 3200000 },
-      { name: '강남역삼점', value: 2950000 },
-      { name: '성수본점', value: 2800000 },
-      { name: '가로수길점', value: 2400000 },
-      { name: '여의도IFC점', value: 2100000 },
-    ],
-    monthly: [
-      { name: '성수본점', value: 12500000 },
-      { name: '홍대입구점', value: 11800000 },
-      { name: '강남역삼점', value: 11200000 },
-      { name: '부산해운대점', value: 9800000 },
-      { name: '제주애월점', value: 8500000 },
-    ],
-    yearly: [
-      { name: '성수본점', value: 152000000 },
-      { name: '강남역삼점', value: 145000000 },
-      { name: '홍대입구점', value: 138000000 },
-      { name: '판교테크노점', value: 122000000 },
-      { name: '광화문점', value: 115000000 },
-    ],
+    daily: [],
+    weekly: [],
+    monthly: [],
+    yearly: [],
   }
 };
 
@@ -127,46 +78,15 @@ export default function App() {
   const [systemTab, setSystemTab] = useState<'products' | 'notices' | 'stores'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [notices, setNotices] = useState<Notice[]>([
-    {
-      id: 'notice-1',
-      title: '가맹점 발주 가이드 안내',
-      content: '새로운 발주 시스템 이용 방법입니다. 매주 월요일 오전 10시까지 발주를 완료해 주세요.',
-      date: '2024-03-01',
-      timestamp: Date.now(),
-      isImportant: true
-    }
-  ]);
-  const [stores, setStores] = useState<Store[]>([
-    { 
-      id: 'test-store-1', 
-      name: '강남역삼점', 
-      owner: '김철수', 
-      address: '서울시 강남구 테헤란로 123', 
-      joinDate: '2024-01-01', 
-      loginId: 'store', 
-      password: '1234' 
-    }
-  ]);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [newProduct, setNewProduct] = useState({ name: '', price: '' });
   const [newNotice, setNewNotice] = useState({ title: '', content: '', isImportant: false });
   const [newStore, setNewStore] = useState({ name: '', owner: '', address: '', loginId: '', password: '' });
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: 'ORD-TEST001',
-      date: '2024년 3월 1일',
-      timestamp: Date.now() - 86400000,
-      storeName: '강남역삼점',
-      items: [
-        { id: '1', name: '원두 (다크 블렌드)', category: '커피', price: 25000, unit: '1kg', image: '', stock: 100, quantity: 2 }
-      ],
-      totalAmount: 50000,
-      status: 'pending'
-    }
-  ]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false);
@@ -231,10 +151,10 @@ export default function App() {
       id: `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
       timestamp: Date.now(),
-      storeName: '강남역삼점',
+      storeName: userRole === 'hq' ? '본사' : '가맹점', // Should be dynamic based on logged in user
       items: [...cart],
       totalAmount: cartTotal,
-      status: 'pending'
+      status: 'PENDING'
     };
 
     setOrders(prev => [newOrder, ...prev]);
@@ -312,7 +232,7 @@ export default function App() {
       storeName: manualOrderData.storeName,
       items: manualOrderData.items,
       totalAmount,
-      status: 'pending'
+      status: 'PENDING'
     };
 
     setOrders(prev => [newOrder, ...prev]);
@@ -422,15 +342,15 @@ export default function App() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginForm.id === 'hq' && loginForm.password === '1234') {
-      setUserRole('hq');
-      setIsLoggedIn(true);
-    } else if (loginForm.id === 'store' && loginForm.password === '1234') {
-      setUserRole('franchise');
-      setIsLoggedIn(true);
-    } else {
-      alert('아이디 또는 비밀번호가 올바르지 않습니다.');
+    // TODO: Implement real authentication with backend
+    if (!loginForm.id || !loginForm.password) {
+      alert('아이디와 비밀번호를 입력해주세요.');
+      return;
     }
+    
+    // Temporary logic for demonstration if no backend is connected yet
+    // In a real app, you would call your API here
+    alert('백엔드 API 연결이 필요합니다.');
   };
 
   const fillTestAccount = (role: UserRole) => {
@@ -499,23 +419,6 @@ export default function App() {
             </button>
           </form>
 
-          <div className="space-y-3 pt-4">
-            <p className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">테스트 계정 바로가기</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => fillTestAccount('franchise')}
-                className="py-3 px-4 bg-brand-yellow/10 text-brand-black border border-brand-yellow/20 rounded-xl text-xs font-bold hover:bg-brand-yellow/20 transition-all"
-              >
-                가맹점 테스트
-              </button>
-              <button 
-                onClick={() => fillTestAccount('hq')}
-                className="py-3 px-4 bg-brand-black text-white rounded-xl text-xs font-bold hover:bg-brand-black/90 transition-all"
-              >
-                본사 테스트
-              </button>
-            </div>
-          </div>
         </motion.div>
       </div>
     );
@@ -551,8 +454,8 @@ export default function App() {
           </button>
           <div className="hidden md:flex items-center gap-2 pl-4 border-l border-gray-100">
             <div className="text-right">
-              <p className="text-xs text-gray-500">{userRole === 'hq' ? '본사 관리자' : '강남역삼점'}</p>
-              <p className="text-sm font-semibold">{userRole === 'hq' ? '운영팀장님' : '김사장님'}</p>
+              <p className="text-xs text-gray-500">{userRole === 'hq' ? '본사 관리자' : '가맹점'}</p>
+              <p className="text-sm font-semibold">{userRole === 'hq' ? '관리자님' : '점주님'}</p>
             </div>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${userRole === 'hq' ? 'bg-brand-black text-white' : 'bg-brand-yellow text-brand-black'}`}>
               <User size={18} />
@@ -970,7 +873,7 @@ export default function App() {
                         <div className="flex gap-2">
                           {order.status === 'pending' && (
                             <button 
-                              onClick={() => updateOrderStatus(order.id, 'processing')}
+                              onClick={() => updateOrderStatus(order.id, 'APPROVED')}
                               className="px-4 py-2 bg-brand-yellow text-brand-black text-xs font-bold rounded-xl hover:scale-105 transition-all flex items-center gap-2"
                             >
                               <CheckCircle2 size={14} /> 주문 승인
@@ -978,7 +881,7 @@ export default function App() {
                           )}
                           {order.status === 'processing' && (
                             <button 
-                              onClick={() => updateOrderStatus(order.id, 'delivered')}
+                              onClick={() => updateOrderStatus(order.id, 'COMPLETED')}
                               className="px-4 py-2 bg-green-500 text-white text-xs font-bold rounded-xl hover:scale-105 transition-all flex items-center gap-2"
                             >
                               <CheckCircle2 size={14} /> 배송 완료

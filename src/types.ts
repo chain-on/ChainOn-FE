@@ -21,7 +21,7 @@ export interface Order {
   storeName: string;
   items: CartItem[];
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'PENDING' | 'APPROVED' | 'COMPLETED';
 }
 
 export interface Notice {
@@ -43,8 +43,4 @@ export interface Store {
   password?: string;
 }
 
-export const MOCK_PRODUCTS: Product[] = [
-  { id: '1', name: '원두 (다크 블렌드)', category: '커피', price: 25000, unit: '1kg', image: '', stock: 100 },
-  { id: '2', name: '우유 (멸균)', category: '유제품', price: 18000, unit: '1L x 12', image: '', stock: 50 },
-  { id: '3', name: '종이컵 (12oz)', category: '소모품', price: 45000, unit: '1000ea', image: '', stock: 200 },
-];
+export const MOCK_PRODUCTS: Product[] = [];
