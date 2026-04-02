@@ -12,7 +12,8 @@ export interface CartItem extends Product {
   quantity: number;
 }
 
-export type UserRole = 'franchise' | 'hq';
+/** UI에서 사용 — API의 `HQ_ADMIN` / `FRANCHISE_USER` enum과 매핑 */
+export type UserRole = 'hq' | 'franchise';
 
 export interface Order {
   id: string;

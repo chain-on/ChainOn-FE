@@ -340,22 +340,60 @@ export default function App() {
     XLSX.writeFile(workbook, `주문내역_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement real authentication with backend
-    if (!loginForm.id || !loginForm.password) {
-      alert('아이디와 비밀번호를 입력해주세요.');
-      return;
+
+    // VITE_API_URL 비움 = 상대 경로 → Vite dev 프록시로 백엔드 전달(CORS 없음).
+    // 직접 백엔드 URL을 쓰면(예: http://localhost:8080) 브라우저 CORS 설정이 필요함.
+    const baseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+
+    try {
+      const response = await fetch(`${baseUrl}/user/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(loginForm),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const apiMessage =
+          typeof data?.message === 'string' && data.message.trim() !== ''
+            ? data.message
+            : undefined;
+        alert(
+          apiMessage ??
+            (response.status === 401
+              ? '인증에 실패했습니다. 아이디·비밀번호를 확인하세요.'
+              : '로그인에 실패했습니다.')
+        );
+        return;
+      }
+
+      // 백엔드: BaseResponse { result: LoginResponse { tokenResponse: { accessToken, role } } }
+      const result = data?.result;
+      const accessToken = result?.tokenResponse?.accessToken;
+      const apiRole = result?.tokenResponse?.role as 'HQ_ADMIN' | 'FRANCHISE_USER' | undefined;
+
+      if (!accessToken || !apiRole) {
+        console.error('로그인 응답:', data);
+        alert('로그인 응답 형식이 예상과 다릅니다. (토큰/역할 없음)');
+        return;
+      }
+
+      localStorage.setItem('token', accessToken);
+      setUserRole(apiRole === 'HQ_ADMIN' ? 'hq' : 'franchise');
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error('로그인 오류:', error);
+      alert('서버와 통신 중 오류가 발생했습니다.');
     }
-    
-    // Temporary logic for demonstration if no backend is connected yet
-    // In a real app, you would call your API here
-    alert('백엔드 API 연결이 필요합니다.');
   };
 
   const fillTestAccount = (role: UserRole) => {
     if (role === 'hq') {
-      setLoginForm({ id: 'hq', password: '1234' });
+      setLoginForm({ id: 'HQ_ADMIN', password: '1234' });
     } else {
       setLoginForm({ id: 'store', password: '1234' });
     }
