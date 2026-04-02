@@ -343,7 +343,7 @@ export default function App() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // VITE_API_URL 비움 = 상대 경로 → Vite dev 프록시로 백엔드 전달(CORS 없음).
+    // VITE_API_URL 비움 = 상대 경로 → Vite dev 프록시로 백엔드 전달(CORS 없음)..
     // 직접 백엔드 URL을 쓰면(예: http://localhost:8080) 브라우저 CORS 설정이 필요함.
     const baseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
