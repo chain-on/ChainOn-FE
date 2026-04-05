@@ -9,6 +9,12 @@ import {
   OrderStatsResponse,
 } from './types';
 
+// 배포 환경에서는 VITE_API_URL을 사용하고, 개발 환경에서는 프록시를 위해 비워둡니다.
+const getBaseUrl = () => {
+  const url = import.meta.env.VITE_API_URL || '';
+  return url.replace(/\/$/, '');
+};
+
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -21,7 +27,11 @@ const getHeaders = () => {
 };
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(endpoint, {
+  const baseUrl = getBaseUrl();
+  // 엔드포인트가 /로 시작하면 baseUrl과 합칠 때 중복되지 않도록 처리
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  const response = await fetch(url, {
     ...options,
     headers: {
       ...getHeaders(),
@@ -35,18 +45,17 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const contentType = response.headers.get('content-type');
   
-  // JSON 응답이 아닌 경우 (HTML 에러 페이지 등)
   if (!contentType || !contentType.includes('application/json')) {
     const text = await response.text();
-    console.error(`API Error: ${endpoint} returned non-JSON response`, text.substring(0, 100));
-    throw new Error(`서버 응답 오류 (${response.status}): JSON 형식이 아닙니다.`);
+    console.error(`API Error: ${url} returned non-JSON response`, text.substring(0, 100));
+    throw new Error(`서버 응답 오류 (${response.status}): 백엔드 연결 확인이 필요합니다.`);
   }
 
   let data: BaseResponse<T>;
   try {
     data = await response.json();
   } catch (err) {
-    console.error(`JSON Parse Error at ${endpoint}:`, err);
+    console.error(`JSON Parse Error at ${url}:`, err);
     throw new Error('데이터 형식이 올바르지 않습니다.');
   }
 
