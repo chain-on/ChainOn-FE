@@ -1,47 +1,86 @@
-export interface Product {
-  id: string;
+export interface BaseResponse<T> {
+  timestamp: string;
+  code: string;
+  message: string;
+  result: T;
+}
+
+export type UserRole = 'HQ_ADMIN' | 'FRANCHISE_USER';
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  role: UserRole;
+}
+
+export interface LoginResponse {
   name: string;
-  category: string;
-  price: number;
-  unit: string;
-  image: string;
-  stock: number;
-}
-
-export interface CartItem extends Product {
-  quantity: number;
-}
-
-/** UI에서 사용 — API의 `HQ_ADMIN` / `FRANCHISE_USER` enum과 매핑 */
-export type UserRole = 'hq' | 'franchise';
-
-export interface Order {
-  id: string;
-  date: string;
-  timestamp: number;
-  storeName: string;
-  items: CartItem[];
-  totalAmount: number;
-  status: 'PENDING' | 'APPROVED' | 'COMPLETED';
+  organization: string;
+  tokenResponse: TokenResponse;
 }
 
 export interface Notice {
-  id: string;
+  id: number;
   title: string;
   content: string;
-  date: string;
-  timestamp: number;
-  isImportant: boolean;
+  isUrgent: boolean;
+  createdAt: string;
 }
 
-export interface Store {
+export interface Item {
+  ItemId: number;
+  name: string;
+  price: number;
+}
+
+export interface OrderItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  orderId: number;
+  organizationName: string;
+  status: string;
+  createdAt: string;
+  items: OrderItem[];
+  totalPrice: number;
+}
+
+export interface Franchise {
+  orgId: number;
+  name: string;
+  address: string;
+  userName: string;
+  createdAt: string;
+}
+
+export interface OrderStatusStats {
+  pending: number;
+  approved: number;
+}
+
+export interface OrderTrend {
+  date: string;
+  revenue: number;
+}
+
+export interface OrderRank {
+  ranking: number;
+  orgName: string;
+  revenue: number;
+}
+
+export interface OrderStatsResponse {
+  trends: OrderTrend[];
+  ranks: OrderRank[];
+}
+
+export interface User {
   id: string;
   name: string;
-  owner: string;
-  address: string;
-  joinDate: string;
-  loginId: string;
-  password?: string;
+  role: UserRole;
+  organization?: string;
 }
-
-export const MOCK_PRODUCTS: Product[] = [];
