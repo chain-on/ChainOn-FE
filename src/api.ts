@@ -140,7 +140,7 @@ export const api = {
 
   // --- Organization Management ---
   org: {
-    list: () => request<Franchise[]>('/org/child', { method: 'GET' }),
+    list: () => request<Franchise[]>('/admin/franchises', { method: 'GET' }),
     create: (body: { name: string; address: string; parentId: number }) =>
       request<Franchise>('/org/child', {
         method: 'POST',
