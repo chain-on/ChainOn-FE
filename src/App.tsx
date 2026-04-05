@@ -53,6 +53,7 @@ const ProductIcon = () => <Box size={24} />;
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('FRANCHISE_USER');
+  const [userInfo, setUserInfo] = useState<{ name: string; organization: string; orgId: number } | null>(null);
   const [loginForm, setLoginForm] = useState({ id: '', password: '' });
   const [activeTab, setActiveTab] = useState<'shop' | 'orders' | 'notices' | 'hq_dashboard' | 'hq_orders' | 'hq_system'>('shop');
   const [systemTab, setSystemTab] = useState<'products' | 'notices' | 'stores'>('products');
@@ -69,12 +70,32 @@ export default function App() {
   const [cart, setCart] = useState<(Item & { quantity: number })[]>([]);
   const [newProduct, setNewProduct] = useState({ name: '', price: '' });
   const [newNotice, setNewNotice] = useState({ title: '', content: '', isUrgent: false });
-  const [newStore, setNewStore] = useState({ name: '', address: '', parentId: '' });
+  const [newStore, setNewStore] = useState({ name: '', address: '', userId: '', password: '', ownerName: '' });
+  const [editingStore, setEditingStore] = useState<Franchise | null>(null);
   
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [orderFilter, setOrderFilter] = useState<'all' | 'active'>('all');
+
+  // --- Session Restoration ---
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const savedRole = localStorage.getItem('userRole') as UserRole;
+    const savedName = localStorage.getItem('userName');
+    const savedOrg = localStorage.getItem('userOrg');
+    const savedOrgId = localStorage.getItem('userOrgId');
+
+    if (token && savedRole && savedName) {
+      setUserRole(savedRole);
+      setUserInfo({ 
+        name: savedName, 
+        organization: savedOrg || '', 
+        orgId: savedOrgId ? parseInt(savedOrgId) : 0 
+      });
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   // --- Initial Data Fetch ---
   useEffect(() => {
@@ -86,25 +107,25 @@ export default function App() {
   const loadInitialData = async () => {
     try {
       const [prodList, noticeList] = await Promise.all([
-        api.item.list(),
-        api.notice.list()
+        api.item.list().catch(() => []),
+        api.notice.list().catch(() => [])
       ]);
-      setProducts(prodList);
-      setNotices(noticeList);
+      setProducts(prodList || []);
+      setNotices(noticeList || []);
 
       if (userRole === 'HQ_ADMIN') {
         const [orderList, franchiseList, statusStats] = await Promise.all([
-          api.order.getAllOrders(),
-          api.admin.getFranchises(),
-          api.stats.getStatusCounts()
+          api.order.getAllOrders().catch(() => []),
+          api.org.list().catch(() => []),
+          api.stats.getStatusCounts().catch(() => null)
         ]);
-        setOrders(orderList);
-        setStores(franchiseList);
+        setOrders(orderList || []);
+        setStores(franchiseList || []);
         setStats(statusStats);
         loadPeriodicStats(statsPeriod);
       } else {
-        const myOrders = await api.order.getMyOrders();
-        setOrders(myOrders);
+        const myOrders = await api.order.getMyOrders().catch(() => []);
+        setOrders(myOrders || []);
       }
     } catch (error) {
       console.error('Data loading error:', error);
@@ -113,7 +134,7 @@ export default function App() {
 
   const loadPeriodicStats = async (period: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
     try {
-      const data = await api.stats.getPeriodicStats(period);
+      const data = await api.stats.getPeriodicStats(period).catch(() => null);
       setPeriodicStats(data);
     } catch (error) {
       console.error('Stats loading error:', error);
@@ -138,8 +159,22 @@ export default function App() {
     e.preventDefault();
     try {
       const result = await api.auth.login(loginForm);
+      // 백엔드 응답 필드명이 다를 수 있으므로 다양한 가능성 체크 (orgId, organizationId, id 등)
+      // nullish coalescing (??) 사용
+      const orgId = result.orgId ?? (result as any).organizationId ?? (result as any).id ?? 0;
+      
       localStorage.setItem('token', result.tokenResponse.accessToken);
+      localStorage.setItem('userRole', result.tokenResponse.role);
+      localStorage.setItem('userName', result.name);
+      localStorage.setItem('userOrg', result.organization || '');
+      localStorage.setItem('userOrgId', orgId.toString());
+      
       setUserRole(result.tokenResponse.role);
+      setUserInfo({ 
+        name: result.name, 
+        organization: result.organization || '', 
+        orgId: orgId 
+      });
       setIsLoggedIn(true);
     } catch (error: any) {
       alert(error.message || '로그인에 실패했습니다.');
@@ -148,11 +183,17 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await api.auth.logout();
+      await api.auth.logout().catch(() => {});
     } catch (e) {}
     localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userOrg');
+    localStorage.removeItem('userOrgId');
     setIsLoggedIn(false);
+    setUserInfo(null);
     setCart([]);
+    setOrders([]);
   };
 
   const addToCart = (product: Item) => {
@@ -185,8 +226,8 @@ export default function App() {
       setIsCartOpen(false);
       setShowOrderSuccess(true);
       setTimeout(() => setShowOrderSuccess(false), 3000);
-      const myOrders = await api.order.getMyOrders();
-      setOrders(myOrders);
+      const myOrders = await api.order.getMyOrders().catch(() => []);
+      setOrders(myOrders || []);
     } catch (error: any) {
       alert(error.message || '주문에 실패했습니다.');
     }
@@ -198,7 +239,7 @@ export default function App() {
       await api.item.create({ name: newProduct.name, price: parseInt(newProduct.price) });
       setNewProduct({ name: '', price: '' });
       const list = await api.item.list();
-      setProducts(list);
+      setProducts(list || []);
     } catch (error: any) { alert(error.message); }
   };
 
@@ -208,7 +249,7 @@ export default function App() {
       await api.notice.create({ ...newNotice });
       setNewNotice({ title: '', content: '', isUrgent: false });
       const list = await api.notice.list();
-      setNotices(list);
+      setNotices(list || []);
     } catch (error: any) { alert(error.message); }
   };
 
@@ -220,35 +261,85 @@ export default function App() {
     } catch (error: any) { alert(error.message); }
   };
 
+  const handleAddStore = async () => {
+    if (!newStore.name || !newStore.userId || !newStore.password) {
+      alert('가맹점 이름, ID, 비밀번호는 필수입니다.');
+      return;
+    }
+    // orgId가 0일 수도 있으므로 null/undefined만 체크
+    if (userInfo?.orgId === undefined || userInfo?.orgId === null) {
+      alert('로그인 정보에 조직 ID가 없습니다. 다시 로그인해주세요.');
+      return;
+    }
+    try {
+      const createdOrg = await api.org.create({ 
+        name: newStore.name, 
+        address: newStore.address, 
+        parentId: userInfo.orgId 
+      });
+      
+      await api.auth.signup({
+        loginId: newStore.userId,
+        password: newStore.password,
+        name: newStore.ownerName || newStore.name,
+        organizationId: createdOrg.orgId
+      });
+      alert('가맹점이 등록되었습니다.');
+      setNewStore({ name: '', address: '', userId: '', password: '', ownerName: '' });
+      const list = await api.org.list();
+      setStores(list || []);
+    } catch (error: any) { alert(error.message); }
+  };
+
+  const handleUpdateStore = async () => {
+    if (!editingStore || !editingStore.name) return;
+    try {
+      await api.org.update(editingStore.orgId, { name: editingStore.name, address: editingStore.address });
+      alert('가맹점 정보가 수정되었습니다.');
+      setEditingStore(null);
+      const list = await api.org.list();
+      setStores(list || []);
+    } catch (error: any) { alert(error.message); }
+  };
+
+  const handleDeleteStore = async (id: number) => {
+    if (!confirm('가맹점을 삭제하시겠습니까?')) return;
+    try {
+      await api.org.delete(id);
+      setStores(stores.filter(s => s.orgId !== id));
+    } catch (error: any) { alert(error.message); }
+  };
+
   const updateOrderStatus = async (orderId: number) => {
     try {
       await api.order.updateStatus(orderId);
       const [orderList, statusStats] = await Promise.all([
-        api.order.getAllOrders(),
-        api.stats.getStatusCounts()
+        api.order.getAllOrders().catch(() => []),
+        api.stats.getStatusCounts().catch(() => null)
       ]);
-      setOrders(orderList);
+      setOrders(orderList || []);
       setStats(statusStats);
     } catch (error: any) { alert(error.message); }
   };
 
   // --- Memoized Values ---
   const filteredProducts = useMemo(() => {
-    return products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    return (products || []).filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [products, searchQuery]);
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const filteredOrders = useMemo(() => {
-    let result = orders;
+    const baseOrders = Array.isArray(orders) ? orders : [];
+    let result = baseOrders;
     if (orderFilter === 'active') {
       result = result.filter(o => o.status === 'PENDING' || o.status === 'APPROVED');
     }
     if (searchQuery) {
       result = result.filter(o => 
-        o.orderId.toString().includes(searchQuery) || 
-        o.organizationName.toLowerCase().includes(searchQuery.toLowerCase())
+        o.orderId?.toString().includes(searchQuery) || 
+        o.organizationName?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     return result;
@@ -289,7 +380,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-gray pb-20 md:pb-0 font-sans">
+    <div className="min-h-screen bg-brand-gray pb-20 md:pb-0 font-sans text-brand-black">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -302,8 +393,12 @@ export default function App() {
           </button>
           <div className="hidden md:flex items-center gap-2 pl-4 border-l border-gray-100">
             <div className="text-right">
-              <p className="text-xs text-gray-500">{userRole === 'HQ_ADMIN' ? '본사 관리자' : '가맹점 점주'}</p>
-              <p className="text-sm font-semibold">안녕하세요!</p>
+              <p className="text-xs text-gray-500 font-bold">
+                {userRole === 'HQ_ADMIN' 
+                  ? '본사 관리자' 
+                  : userInfo?.organization || '가맹점'}
+              </p>
+              <p className="text-sm font-semibold">{userInfo?.name || '사용자'}님</p>
             </div>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${userRole === 'HQ_ADMIN' ? 'bg-brand-black text-white' : 'bg-brand-yellow text-brand-black'}`}>
               <User size={18} />
@@ -323,7 +418,7 @@ export default function App() {
                   <input type="text" placeholder="필요한 물품을 검색해보세요" className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-none danggeun-shadow outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredProducts.map(product => {
+                  {(filteredProducts || []).map(product => {
                     const cartItem = cart.find(item => item.ItemId === product.ItemId);
                     return (
                       <div key={product.ItemId} className="bg-white rounded-2xl p-4 flex gap-4 items-center danggeun-shadow border-2 border-transparent hover:border-brand-red/10 transition-all">
@@ -346,14 +441,14 @@ export default function App() {
             {activeTab === 'orders' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold">내 주문 내역</h2>
-                {orders.length === 0 ? (
+                {!orders || orders.length === 0 ? (
                   <div className="bg-white rounded-2xl p-12 text-center text-gray-400 danggeun-shadow">주문 내역이 없습니다.</div>
                 ) : (
                   orders.map(order => (
                     <div key={order.orderId} className="bg-white rounded-2xl p-5 danggeun-shadow space-y-4">
                       <div className="flex justify-between">
                         <div>
-                          <p className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</p>
+                          <p className="text-xs text-gray-400">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</p>
                           <h3 className="font-bold">#ORD-{order.orderId}</h3>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -366,7 +461,7 @@ export default function App() {
                         </span>
                       </div>
                       <div className="space-y-1">
-                        {order.items.map(item => (
+                        {order.items?.map(item => (
                           <div key={item.id} className="flex justify-between text-sm text-gray-600">
                             <span>{item.name} x {item.quantity}</span>
                             <span>{(item.price * item.quantity).toLocaleString()}원</span>
@@ -375,7 +470,7 @@ export default function App() {
                       </div>
                       <div className="pt-2 border-t font-bold flex justify-between">
                         <span>총 합계</span>
-                        <span>{order.totalPrice.toLocaleString()}원</span>
+                        <span>{(order.totalPrice || 0).toLocaleString()}원</span>
                       </div>
                     </div>
                   ))
@@ -385,11 +480,11 @@ export default function App() {
             {activeTab === 'notices' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold">공지사항</h2>
-                {notices.map(notice => (
+                {(notices || []).map(notice => (
                   <div key={notice.id} className={`bg-white rounded-2xl p-5 danggeun-shadow space-y-2 border-l-4 ${notice.isUrgent ? 'border-brand-red' : 'border-transparent'}`}>
                     <div className="flex items-center gap-2">
                       {notice.isUrgent && <span className="bg-brand-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded">긴급</span>}
-                      <span className="text-xs text-gray-400">{new Date(notice.createdAt).toLocaleDateString()}</span>
+                      <span className="text-xs text-gray-400">{notice.createdAt ? new Date(notice.createdAt).toLocaleDateString() : '-'}</span>
                     </div>
                     <h3 className="font-bold text-lg">{notice.title}</h3>
                     <p className="text-sm text-gray-600">{notice.content}</p>
@@ -406,7 +501,6 @@ export default function App() {
             {activeTab === 'hq_dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* 처리 현황 카드 - 레이블 수정 및 버튼 추가 */}
                   <div className="bg-white p-6 rounded-3xl danggeun-shadow space-y-4 flex flex-col justify-between">
                     <div>
                       <p className="text-[10px] text-gray-400 font-bold uppercase mb-4">처리 현황</p>
@@ -421,7 +515,6 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    
                     <button 
                       onClick={() => {
                         setOrderFilter('active');
@@ -432,58 +525,100 @@ export default function App() {
                       주문 처리하러 가기 <ChevronRight size={14} />
                     </button>
                   </div>
-
                   <div className="bg-white p-6 rounded-3xl danggeun-shadow space-y-4">
                     <h3 className="font-bold text-xs uppercase text-gray-400">최근 주문</h3>
                     <div className="space-y-2 text-xs">
-                      {orders.slice(0, 3).map(o => (
+                      {(orders || []).slice(0, 3).map(o => (
                         <div key={o.orderId} className="flex justify-between p-2.5 bg-gray-50 rounded-xl">
                           <span className="font-bold text-brand-red truncate max-w-[120px]">{o.organizationName}</span>
-                          <span className="font-bold">{o.totalPrice.toLocaleString()}원</span>
+                          <span className="font-bold">{(o.totalPrice || 0).toLocaleString()}원</span>
                         </div>
                       ))}
-                      {orders.length === 0 && <p className="text-center py-4 text-gray-400">최근 주문이 없습니다.</p>}
+                      {(!orders || orders.length === 0) && <p className="text-center py-4 text-gray-400">최근 주문이 없습니다.</p>}
                     </div>
                   </div>
                 </div>
-
-                <div className="bg-white p-6 rounded-2xl danggeun-shadow">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-lg">매출 추이</h3>
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
-                      {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
-                        <button key={p} onClick={() => setStatsPeriod(p)} className={`px-3 py-1 text-[10px] font-bold rounded-md ${statsPeriod === p ? 'bg-white text-brand-red shadow-sm' : 'text-gray-400'}`}>
-                          {p === 'daily' ? '일' : p === 'weekly' ? '주' : p === 'monthly' ? '월' : '년'}
-                        </button>
-                      ))}
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* 매출 추이 차트 */}
+                  <div className="bg-white p-6 rounded-2xl danggeun-shadow">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="font-bold text-lg flex items-center gap-2">
+                        <BarChart3 size={20} className="text-brand-red" /> 매출 추이
+                      </h3>
+                      <div className="flex bg-gray-100 p-1 rounded-lg">
+                        {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
+                          <button key={p} onClick={() => setStatsPeriod(p)} className={`px-3 py-1 text-[10px] font-bold rounded-md ${statsPeriod === p ? 'bg-white text-brand-red shadow-sm' : 'text-gray-400'}`}>
+                            {p === 'daily' ? '일' : p === 'weekly' ? '주' : p === 'monthly' ? '월' : '년'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="h-[200px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={periodicStats?.trends || []}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
+                          <XAxis dataKey="date" hide />
+                          <YAxis hide />
+                          <Tooltip />
+                          <Area type="monotone" dataKey="revenue" stroke="#FF0000" fill="#FF000022" strokeWidth={2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
-                  <div className="h-[200px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={periodicStats?.trends || []}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F0F0F0" />
-                        <XAxis dataKey="date" hide />
-                        <YAxis hide />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="revenue" stroke="#FF0000" fill="#FF000022" strokeWidth={2} />
-                      </AreaChart>
-                    </ResponsiveContainer>
+
+                  {/* 지점 매출 랭킹 복구 */}
+                  <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg flex items-center gap-2">
+                        <TrendingUp size={20} className="text-brand-red" /> 지점 매출 랭킹
+                      </h3>
+                      <span className="text-[10px] text-gray-400 font-bold uppercase">{statsPeriod} TOP 5</span>
+                    </div>
+                    <div className="space-y-4">
+                      {!periodicStats?.ranks || periodicStats.ranks.length === 0 ? (
+                        <div className="h-[200px] flex items-center justify-center text-gray-400 text-xs font-bold">데이터가 없습니다.</div>
+                      ) : (
+                        periodicStats.ranks.map((item, idx) => (
+                          <div key={item.orgName} className="flex items-center gap-4">
+                            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
+                              idx === 0 ? 'bg-brand-yellow text-brand-black' : 
+                              idx === 1 ? 'bg-gray-200 text-gray-600' : 
+                              idx === 2 ? 'bg-orange-100 text-orange-600' : 'text-gray-400'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-sm font-bold">{item.orgName}</span>
+                                <span className="text-sm font-bold">{item.revenue.toLocaleString()}원</span>
+                              </div>
+                              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(item.revenue / periodicStats.ranks[0].revenue) * 100}%` }}
+                                  className={`h-full rounded-full ${idx === 0 ? 'bg-brand-red' : 'bg-brand-black'}`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
-
             {activeTab === 'hq_orders' && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold">전체 주문 관리</h2>
                   <div className="flex gap-2">
-                    <button onClick={() => setOrderFilter('all')} className={`px-4 py-2 rounded-xl text-xs font-bold ${orderFilter === 'all' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>전체</button>
-                    <button onClick={() => setOrderFilter('active')} className={`px-4 py-2 rounded-xl text-xs font-bold ${orderFilter === 'active' ? 'bg-brand-red text-white' : 'bg-white text-gray-500 border'}`}>진행중</button>
+                    <button onClick={() => { setOrderFilter('all'); setActiveTab('hq_orders'); }} className={`px-4 py-2 rounded-xl text-xs font-bold ${orderFilter === 'all' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>전체</button>
+                    <button onClick={() => { setOrderFilter('active'); setActiveTab('hq_orders'); }} className={`px-4 py-2 rounded-xl text-xs font-bold ${orderFilter === 'active' ? 'bg-brand-red text-white' : 'bg-white text-gray-500 border'}`}>진행중</button>
                   </div>
                 </div>
-                
-                {filteredOrders.length === 0 ? (
+                {(!filteredOrders || filteredOrders.length === 0) ? (
                   <div className="bg-white rounded-2xl p-12 text-center text-gray-400 danggeun-shadow">해당하는 주문이 없습니다.</div>
                 ) : (
                   filteredOrders.map(order => (
@@ -492,26 +627,16 @@ export default function App() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <p className="text-xs font-bold text-brand-red">{order.organizationName}</p>
-                            <span className="text-[10px] text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</span>
+                            <span className="text-[10px] text-gray-400">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</span>
                           </div>
                           <h3 className="font-bold">#ORD-{order.orderId}</h3>
                         </div>
                         <div className="flex gap-2">
                           {order.status === 'PENDING' && (
-                            <button 
-                              onClick={() => updateOrderStatus(order.orderId)} 
-                              className="px-4 py-2 bg-brand-yellow text-brand-black text-xs font-bold rounded-xl hover:scale-105 transition-all"
-                            >
-                              주문 승인
-                            </button>
+                            <button onClick={() => updateOrderStatus(order.orderId)} className="px-4 py-2 bg-brand-yellow text-brand-black text-xs font-bold rounded-xl">주문 승인</button>
                           )}
                           {order.status === 'APPROVED' && (
-                            <button 
-                              onClick={() => updateOrderStatus(order.orderId)} 
-                              className="px-4 py-2 bg-green-500 text-white text-xs font-bold rounded-xl hover:scale-105 transition-all"
-                            >
-                              배송 완료
-                            </button>
+                            <button onClick={() => updateOrderStatus(order.orderId)} className="px-4 py-2 bg-green-500 text-white text-xs font-bold rounded-xl">배송 완료</button>
                           )}
                           <span className={`px-3 py-2 rounded-xl text-[10px] font-bold ${
                             order.status === 'PENDING' ? 'bg-gray-100 text-gray-400' : 
@@ -523,7 +648,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-xl space-y-2">
-                        {order.items.map(item => (
+                        {order.items?.map(item => (
                           <div key={item.id} className="flex justify-between">
                             <span>{item.name}</span>
                             <span className="font-bold">{item.quantity}개</span>
@@ -531,15 +656,13 @@ export default function App() {
                         ))}
                       </div>
                       <div className="flex justify-between items-center">
-                        <p className="font-bold text-brand-red text-lg">{order.totalPrice.toLocaleString()}원</p>
-                        <button className="text-[10px] font-bold text-gray-400 hover:text-brand-black">상세 내역</button>
+                        <p className="font-bold text-brand-red text-lg">{(order.totalPrice || 0).toLocaleString()}원</p>
                       </div>
                     </div>
                   ))
                 )}
               </div>
             )}
-
             {activeTab === 'hq_system' && (
               <div className="space-y-6">
                 <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
@@ -549,7 +672,6 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-
                 {systemTab === 'products' && (
                   <div className="space-y-4">
                     <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
@@ -561,7 +683,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {products.map(p => (
+                      {(products || []).map(p => (
                         <div key={p.ItemId} className="bg-white p-4 rounded-2xl danggeun-shadow flex justify-between items-center">
                           <span className="font-bold">{p.name}</span>
                           <span className="text-sm text-gray-500">{p.price.toLocaleString()}원</span>
@@ -570,7 +692,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
                 {systemTab === 'notices' && (
                   <div className="space-y-4">
                     <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
@@ -578,11 +699,56 @@ export default function App() {
                       <textarea placeholder="내용" className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none h-24" value={newNotice.content} onChange={e => setNewNotice({...newNotice, content: e.target.value})} />
                       <button onClick={handleAddNotice} className="w-full py-3 bg-brand-red text-white font-bold rounded-xl">공지 등록</button>
                     </div>
-                    {notices.map(n => (
+                    {(notices || []).map(n => (
                       <div key={n.id} className="bg-white p-5 rounded-2xl danggeun-shadow relative">
                         <h3 className="font-bold">{n.title}</h3>
                         <p className="text-sm text-gray-500">{n.content}</p>
                         <button onClick={() => handleDeleteNotice(n.id)} className="absolute top-4 right-4 text-gray-300 hover:text-brand-red"><X size={18} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {systemTab === 'stores' && (
+                  <div className="space-y-4">
+                    {editingStore ? (
+                      <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4 border-2 border-brand-red/20">
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-bold text-sm text-brand-red">가맹점 정보 수정</h3>
+                          <button onClick={() => setEditingStore(null)} className="text-gray-400"><X size={18} /></button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" placeholder="가맹점 이름" className="px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none focus:ring-1 ring-brand-red" value={editingStore.name} onChange={e => setEditingStore({...editingStore, name: e.target.value})} />
+                          <input type="text" placeholder="주소" className="px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none focus:ring-1 ring-brand-red" value={editingStore.address} onChange={e => setEditingStore({...editingStore, address: e.target.value})} />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingStore(null)} className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl">취소</button>
+                          <button onClick={handleUpdateStore} className="flex-[2] py-3 bg-brand-red text-white font-bold rounded-xl">수정 완료</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
+                        <h3 className="font-bold text-sm">새 가맹점 등록</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" placeholder="가맹점 이름" className="px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none" value={newStore.name} onChange={e => setNewStore({...newStore, name: e.target.value})} />
+                          <input type="text" placeholder="주소" className="px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none" value={newStore.address} onChange={e => setNewStore({...newStore, address: e.target.value})} />
+                          <input type="text" placeholder="관리자 ID" className="px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none" value={newStore.userId} onChange={e => setNewStore({...newStore, userId: e.target.value})} />
+                          <input type="password" placeholder="비밀번호" className="px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none" value={newStore.password} onChange={e => setNewStore({...newStore, password: e.target.value})} />
+                          <input type="text" placeholder="점주 이름" className="col-span-2 px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none" value={newStore.ownerName} onChange={e => setNewStore({...newStore, ownerName: e.target.value})} />
+                        </div>
+                        <button onClick={handleAddStore} className="w-full py-3 bg-brand-red text-white font-bold rounded-xl">가맹점 등록</button>
+                      </div>
+                    )}
+                    {(stores || []).map(s => (
+                      <div key={s.orgId} className="bg-white p-5 rounded-2xl danggeun-shadow flex justify-between items-center group relative">
+                        <div>
+                          <h3 className="font-bold">{s.name}</h3>
+                          <p className="text-xs text-gray-500">{s.address}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">관리자: {s.userName}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingStore(s)} className="text-gray-300 hover:text-brand-black transition-colors"><Settings size={18} /></button>
+                          <button onClick={() => handleDeleteStore(s.orgId)} className="text-gray-300 hover:text-brand-red transition-colors"><X size={18} /></button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -593,7 +759,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Nav & Modals */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t px-6 py-3 flex justify-around md:hidden z-40">
         {userRole === 'FRANCHISE_USER' ? (
           <>
@@ -604,13 +769,12 @@ export default function App() {
         ) : (
           <>
             <button onClick={() => setActiveTab('hq_dashboard')} className={activeTab === 'hq_dashboard' ? 'text-brand-red' : 'text-gray-400'}><BarChart3 /><span className="text-[10px] block font-bold">홈</span></button>
-            <button onClick={() => setActiveTab('hq_orders')} className={activeTab === 'hq_orders' ? 'text-brand-red' : 'text-gray-400'}><Truck /><span className="text-[10px] block font-bold">주문</span></button>
+            <button onClick={() => { setOrderFilter('all'); setActiveTab('hq_orders'); }} className={activeTab === 'hq_orders' ? 'text-brand-red' : 'text-gray-400'}><Truck /><span className="text-[10px] block font-bold">주문</span></button>
             <button onClick={() => setActiveTab('hq_system')} className={activeTab === 'hq_system' ? 'text-brand-red' : 'text-gray-400'}><Settings /><span className="text-[10px] block font-bold">관리</span></button>
           </>
         )}
       </nav>
 
-      {/* Desktop Nav */}
       <div className="hidden md:flex fixed left-6 top-1/2 -translate-y-1/2 flex-col gap-4 z-30">
         {userRole === 'FRANCHISE_USER' ? (
           <>
@@ -621,13 +785,12 @@ export default function App() {
         ) : (
           <>
             <button onClick={() => setActiveTab('hq_dashboard')} className={`w-12 h-12 rounded-xl flex items-center justify-center danggeun-shadow transition-all ${activeTab === 'hq_dashboard' ? 'bg-brand-red text-white' : 'bg-white text-gray-400'}`}><BarChart3 /></button>
-            <button onClick={() => setActiveTab('hq_orders')} className={`w-12 h-12 rounded-xl flex items-center justify-center danggeun-shadow transition-all ${activeTab === 'hq_orders' ? 'bg-brand-red text-white' : 'bg-white text-gray-400'}`}><Truck /></button>
+            <button onClick={() => { setOrderFilter('all'); setActiveTab('hq_orders'); }} className={`w-12 h-12 rounded-xl flex items-center justify-center danggeun-shadow transition-all ${activeTab === 'hq_orders' ? 'bg-brand-red text-white' : 'bg-white text-gray-400'}`}><Truck /></button>
             <button onClick={() => setActiveTab('hq_system')} className={`w-12 h-12 rounded-xl flex items-center justify-center danggeun-shadow transition-all ${activeTab === 'hq_system' ? 'bg-brand-red text-white' : 'bg-white text-gray-400'}`}><Settings /></button>
           </>
         )}
       </div>
 
-      {/* Floating Cart */}
       {userRole === 'FRANCHISE_USER' && (
         <button onClick={() => setIsCartOpen(true)} className="fixed bottom-24 right-6 w-14 h-14 bg-brand-black text-white rounded-full flex items-center justify-center shadow-xl z-40">
           <ShoppingCart />{cartCount > 0 && <span className="absolute -top-1 -right-1 bg-brand-red text-[10px] px-1.5 py-0.5 rounded-full border border-white">{cartCount}</span>}
@@ -638,7 +801,7 @@ export default function App() {
         {isCartOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsCartOpen(false)} className="fixed inset-0 bg-black/40 z-50" />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed top-0 right-0 bottom-0 w-80 bg-white z-50 flex flex-col p-6 shadow-2xl">
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed top-0 right-0 bottom-0 w-80 bg-white z-50 flex flex-col p-6 shadow-2xl text-brand-black">
               <div className="flex justify-between items-center mb-6"><h2 className="font-bold text-lg">장바구니 <span className="text-brand-red">{cartCount}</span></h2><button onClick={() => setIsCartOpen(false)}><X /></button></div>
               <div className="flex-1 overflow-auto space-y-4 pr-1">
                 {cart.length === 0 ? (
@@ -661,7 +824,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Success Toast */}
       <AnimatePresence>
         {showOrderSuccess && (
           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-brand-black text-white px-6 py-3 rounded-full flex items-center gap-3 z-[100] shadow-xl">

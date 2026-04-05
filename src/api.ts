@@ -138,6 +138,25 @@ export const api = {
     getFranchises: () => request<Franchise[]>('/admin/franchises', { method: 'GET' }),
   },
 
+  // --- Organization Management ---
+  org: {
+    list: () => request<Franchise[]>('/org/child', { method: 'GET' }),
+    create: (body: { name: string; address: string; parentId: number }) =>
+      request<Franchise>('/org/child', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    update: (id: number, body: { name: string; address: string }) =>
+      request<string>(`/org/child/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    delete: (id: number) =>
+      request<string>(`/org/child/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+
   // --- Dashboard Statistics ---
   stats: {
     getStatusCounts: () => request<OrderStatusStats>('/admin/order/status', { method: 'GET' }),

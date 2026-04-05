@@ -16,6 +16,7 @@ export interface TokenResponse {
 export interface LoginResponse {
   name: string;
   organization: string;
+  orgId: number;
   tokenResponse: TokenResponse;
 }
 
