@@ -29,18 +29,31 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     },
   });
 
-  // Check if response is empty (e.g. 204 No Content)
   if (response.status === 204) {
     return {} as T;
   }
 
-  const data: BaseResponse<T> = await response.json();
+  const contentType = response.headers.get('content-type');
+  
+  // JSON 응답이 아닌 경우 (HTML 에러 페이지 등)
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    console.error(`API Error: ${endpoint} returned non-JSON response`, text.substring(0, 100));
+    throw new Error(`서버 응답 오류 (${response.status}): JSON 형식이 아닙니다.`);
+  }
+
+  let data: BaseResponse<T>;
+  try {
+    data = await response.json();
+  } catch (err) {
+    console.error(`JSON Parse Error at ${endpoint}:`, err);
+    throw new Error('데이터 형식이 올바르지 않습니다.');
+  }
 
   if (!response.ok) {
     throw new Error(data.message || `API Error: ${response.status}`);
   }
 
-  // Backends often return the actual data inside 'result'
   return data.result;
 }
 
@@ -93,7 +106,6 @@ export const api = {
 
   // --- Order ---
   order: {
-    // User
     getMyOrders: () => request<Order[]>('/order', { method: 'GET' }),
     create: (items: { itemId: number; quantity: number }[]) =>
       request<string>('/order', {
@@ -101,7 +113,6 @@ export const api = {
         body: JSON.stringify(items),
       }),
 
-    // Admin
     getAllOrders: () => request<Order[]>('/admin/order', { method: 'GET' }),
     updateStatus: (orderId: number) =>
       request<string>(`/admin/order/status/${orderId}`, {
@@ -113,23 +124,9 @@ export const api = {
       }),
   },
 
-  // --- Admin/Franchise Management ---
+  // --- Admin Management ---
   admin: {
     getFranchises: () => request<Franchise[]>('/admin/franchises', { method: 'GET' }),
-    updateFranchise: (orgId: number, body: any) =>
-      request<string>(`/admin/franchises/${orgId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      }),
-    deleteFranchise: (orgId: number) =>
-      request<string>(`/admin/franchises/${orgId}`, {
-        method: 'DELETE',
-      }),
-    createOrg: (body: { name: string; address: string; parentId?: number }, type: 'parent' | 'child') =>
-      request<string>(`/org/${type}`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
   },
 
   // --- Dashboard Statistics ---
@@ -139,6 +136,5 @@ export const api = {
       request<OrderStatsResponse>(`/admin/order/stats/${period}`, {
         method: 'GET',
       }),
-    getRecentOrders: () => request<any[]>('/admin/recent', { method: 'GET' }),
   },
 };
