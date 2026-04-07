@@ -107,6 +107,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    update: (id: number, body: { name: string; price: number }) =>
+      request<string>(`/admin/item/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
     delete: (id: number) =>
       request<string>(`/admin/item/${id}`, {
         method: 'DELETE',

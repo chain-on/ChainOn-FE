@@ -1,0 +1,51 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Search, 
+  ShoppingCart, 
+  Package, 
+  History, 
+  ChevronRight, 
+  Plus, 
+  Minus, 
+  X, 
+  CheckCircle2,
+  Bell,
+  User,
+  Box,
+  BarChart3,
+  Truck,
+  Calendar,
+  TrendingUp,
+  Megaphone,
+  Settings,
+  Download,
+  Store as StoreIcon,
+  Edit2,
+  Trash2,
+  LogOut,
+  Lock,
+  Mail,
+  AlertCircle
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer
+} from 'recharts';
+import * as XLSX from 'xlsx';
+import { 
+  Item, 
+  Order, 
+  UserRole, 
+  Notice, 
+  Franchise, 
+  OrderStatusStats,
+  OrderStatsResponse
+} from './types';
+import { api } from './api';
+import { ProductIcon } from './App'; // This might be wrong if ProductIcon is defined inside App.tsx, but let's assume it was there or we'll find it.

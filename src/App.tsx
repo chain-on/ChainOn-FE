@@ -73,6 +73,7 @@ export default function App() {
   const [newNotice, setNewNotice] = useState({ title: '', content: '', isUrgent: false });
   const [newStore, setNewStore] = useState({ name: '', address: '', userId: '', password: '', ownerName: '' });
   const [editingStore, setEditingStore] = useState<Franchise | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Item | null>(null);
   
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
@@ -241,6 +242,24 @@ export default function App() {
       setNewProduct({ name: '', price: '' });
       const list = await api.item.list();
       setProducts(list || []);
+    } catch (error: any) { alert(error.message); }
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingProduct || !editingProduct.name || !editingProduct.price) return;
+    try {
+      await api.item.update(editingProduct.ItemId, { name: editingProduct.name, price: editingProduct.price });
+      setEditingProduct(null);
+      const list = await api.item.list();
+      setProducts(list || []);
+    } catch (error: any) { alert(error.message); }
+  };
+
+  const handleDeleteProduct = async (id: number) => {
+    if (!confirm('품목을 삭제하시겠습니까?')) return;
+    try {
+      await api.item.delete(id);
+      setProducts(products.filter(p => p.ItemId !== id));
     } catch (error: any) { alert(error.message); }
   };
 
@@ -728,9 +747,36 @@ export default function App() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {(products || []).map(p => (
-                        <div key={p.ItemId} className="bg-white p-4 rounded-2xl danggeun-shadow flex justify-between items-center">
-                          <span className="font-bold">{p.name}</span>
-                          <span className="text-sm text-gray-500">{p.price.toLocaleString()}원</span>
+                        <div key={p.ItemId} className="bg-white p-4 rounded-2xl danggeun-shadow flex justify-between items-center group">
+                          {editingProduct?.ItemId === p.ItemId ? (
+                            <div className="flex-1 flex gap-2 items-center">
+                              <input 
+                                type="text" 
+                                className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm outline-none border border-brand-red/20" 
+                                value={editingProduct.name} 
+                                onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} 
+                              />
+                              <input 
+                                type="number" 
+                                className="w-24 px-3 py-2 bg-gray-50 rounded-lg text-sm outline-none border border-brand-red/20" 
+                                value={editingProduct.price} 
+                                onChange={e => setEditingProduct({...editingProduct, price: parseInt(e.target.value)})} 
+                              />
+                              <button onClick={handleUpdateProduct} className="p-2 text-brand-red hover:bg-brand-red/5 rounded-lg"><CheckCircle2 size={18} /></button>
+                              <button onClick={() => setEditingProduct(null)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={18} /></button>
+                            </div>
+                          ) : (
+                            <>
+                              <div>
+                                <h4 className="font-bold">{p.name}</h4>
+                                <p className="text-sm text-gray-500">{p.price.toLocaleString()}원</p>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => setEditingProduct(p)} className="p-2 text-gray-400 hover:text-brand-black hover:bg-gray-100 rounded-lg"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDeleteProduct(p.ItemId)} className="p-2 text-gray-400 hover:text-brand-red hover:bg-gray-100 rounded-lg"><Trash2 size={16} /></button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
