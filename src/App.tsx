@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Megaphone,
   Settings,
+  Download,
   Store as StoreIcon,
   Edit2,
   Trash2,
@@ -310,6 +311,33 @@ export default function App() {
     } catch (error: any) { alert(error.message); }
   };
 
+  const handleExportToExcel = () => {
+    const ordersToExport = userRole === 'HQ_ADMIN' ? filteredOrders : orders;
+    if (!ordersToExport || ordersToExport.length === 0) {
+      alert('내보낼 주문 내역이 없습니다.');
+      return;
+    }
+
+    const exportData = ordersToExport.flatMap(order => 
+      order.items.map(item => ({
+        '주문번호': `#ORD-${order.orderId}`,
+        '가맹점': order.organizationName,
+        '상태': order.status === 'PENDING' ? '승인 대기' : order.status === 'APPROVED' ? '배송 준비' : '처리 완료',
+        '주문일시': order.createdAt ? new Date(order.createdAt).toLocaleString() : '-',
+        '상품명': item.name,
+        '단가': item.price,
+        '수량': item.quantity,
+        '금액': item.price * item.quantity,
+        '총합계': order.totalPrice
+      }))
+    );
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "주문내역");
+    XLSX.writeFile(workbook, `주문내역_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const updateOrderStatus = async (orderId: number) => {
     try {
       await api.order.updateStatus(orderId);
@@ -440,7 +468,16 @@ export default function App() {
             )}
             {activeTab === 'orders' && (
               <div className="space-y-4">
-                <h2 className="text-xl font-bold">내 주문 내역</h2>
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold">내 주문 내역</h2>
+                  <button 
+                    onClick={handleExportToExcel}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-colors"
+                  >
+                    <Download size={14} />
+                    엑셀 저장
+                  </button>
+                </div>
                 {!orders || orders.length === 0 ? (
                   <div className="bg-white rounded-2xl p-12 text-center text-gray-400 danggeun-shadow">주문 내역이 없습니다.</div>
                 ) : (
@@ -614,6 +651,13 @@ export default function App() {
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold">전체 주문 관리</h2>
                   <div className="flex gap-2">
+                    <button 
+                      onClick={handleExportToExcel}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-colors"
+                    >
+                      <Download size={14} />
+                      엑셀 저장
+                    </button>
                     <button onClick={() => { setOrderFilter('all'); setActiveTab('hq_orders'); }} className={`px-4 py-2 rounded-xl text-xs font-bold ${orderFilter === 'all' ? 'bg-brand-black text-white' : 'bg-white text-gray-500 border'}`}>전체</button>
                     <button onClick={() => { setOrderFilter('active'); setActiveTab('hq_orders'); }} className={`px-4 py-2 rounded-xl text-xs font-bold ${orderFilter === 'active' ? 'bg-brand-red text-white' : 'bg-white text-gray-500 border'}`}>진행중</button>
                   </div>
