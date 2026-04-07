@@ -1,6 +1,7 @@
 import {
   BaseResponse,
   LoginResponse,
+  TokenResponse,
   Notice,
   Item,
   Order,
@@ -31,13 +32,47 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   // 엔드포인트가 /로 시작하면 baseUrl과 합칠 때 중복되지 않도록 처리
   const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     ...options,
+    credentials: 'include', // 쿠키(refreshToken) 포함을 위해 추가
     headers: {
       ...getHeaders(),
       ...options.headers,
     },
   });
+
+  // 401 Unauthorized 에러 발생 시 토큰 재발급 시도
+  if (response.status === 401 && !endpoint.includes('/user/login') && !endpoint.includes('/user/reissue')) {
+    try {
+      // httpOnly 쿠키에 저장된 refreshToken을 사용하므로 별도 인자 불필요
+      // api.auth.reissue() 대신 직접 fetch 호출하여 순환 참조 방지
+      const reissueResponse = await fetch(`${baseUrl}/user/reissue`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (reissueResponse.ok) {
+        const reissueData: BaseResponse<TokenResponse> = await reissueResponse.json();
+        const reissueResult = reissueData.result;
+        
+        if (reissueResult && reissueResult.accessToken) {
+          localStorage.setItem('token', reissueResult.accessToken);
+          
+          // 새 토큰으로 원본 요청 재시도
+          response = await fetch(url, {
+            ...options,
+            credentials: 'include',
+            headers: {
+              ...getHeaders(),
+              ...options.headers,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Token reissue failed:', err);
+    }
+  }
 
   if (response.status === 204) {
     return {} as T;
@@ -81,6 +116,10 @@ export const api = {
       }),
     logout: () =>
       request<string>('/user/logout', {
+        method: 'POST',
+      }),
+    reissue: () =>
+      request<TokenResponse>('/user/reissue', {
         method: 'POST',
       }),
   },

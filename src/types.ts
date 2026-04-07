@@ -9,7 +9,6 @@ export type UserRole = 'HQ_ADMIN' | 'FRANCHISE_USER';
 
 export interface TokenResponse {
   accessToken: string;
-  refreshToken: string;
   role: UserRole;
 }
 
