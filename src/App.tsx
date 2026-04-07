@@ -695,12 +695,28 @@ export default function App() {
                 {systemTab === 'notices' && (
                   <div className="space-y-4">
                     <div className="bg-white p-6 rounded-2xl danggeun-shadow space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-sm text-brand-black">새 공지 등록</h3>
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded text-brand-red border-gray-300 focus:ring-brand-red accent-brand-red"
+                            checked={newNotice.isUrgent}
+                            onChange={e => setNewNotice({...newNotice, isUrgent: e.target.checked})}
+                          />
+                          <span className={`text-xs font-bold transition-colors ${newNotice.isUrgent ? 'text-brand-red' : 'text-gray-400'}`}>긴급 공지</span>
+                        </label>
+                      </div>
                       <input type="text" placeholder="제목" className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none" value={newNotice.title} onChange={e => setNewNotice({...newNotice, title: e.target.value})} />
                       <textarea placeholder="내용" className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm outline-none h-24" value={newNotice.content} onChange={e => setNewNotice({...newNotice, content: e.target.value})} />
                       <button onClick={handleAddNotice} className="w-full py-3 bg-brand-red text-white font-bold rounded-xl">공지 등록</button>
                     </div>
                     {(notices || []).map(n => (
-                      <div key={n.id} className="bg-white p-5 rounded-2xl danggeun-shadow relative">
+                      <div key={n.id} className={`bg-white p-5 rounded-2xl danggeun-shadow relative border-l-4 ${n.isUrgent ? 'border-brand-red' : 'border-transparent'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          {n.isUrgent && <span className="bg-brand-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded">긴급</span>}
+                          <span className="text-xs text-gray-400">{n.createdAt ? new Date(n.createdAt).toLocaleDateString() : '-'}</span>
+                        </div>
                         <h3 className="font-bold">{n.title}</h3>
                         <p className="text-sm text-gray-500">{n.content}</p>
                         <button onClick={() => handleDeleteNotice(n.id)} className="absolute top-4 right-4 text-gray-300 hover:text-brand-red"><X size={18} /></button>
