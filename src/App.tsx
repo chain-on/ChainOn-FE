@@ -59,6 +59,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'shop' | 'orders' | 'notices' | 'hq_dashboard' | 'hq_orders' | 'hq_system'>('shop');
   const [systemTab, setSystemTab] = useState<'products' | 'notices' | 'stores'>('products');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showHqSignup, setShowHqSignup] = useState(false);
+  const [hqSignupForm, setHqSignupForm] = useState({
+    name: '',
+    address: '',
+    adminName: '',
+    adminId: '',
+    adminPassword: ''
+  });
   
   // API Data States
   const [products, setProducts] = useState<Item[]>([]);
@@ -196,6 +204,33 @@ export default function App() {
     setUserInfo(null);
     setCart([]);
     setOrders([]);
+  };
+
+  const handleHqSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hqSignupForm.name || !hqSignupForm.adminId || !hqSignupForm.adminPassword) {
+      alert('본사 이름, 아이디, 비밀번호는 필수입니다.');
+      return;
+    }
+    try {
+      const hqOrg = await api.org.createHeadquarter({
+        name: hqSignupForm.name,
+        address: hqSignupForm.address
+      });
+
+      await api.auth.signup({
+        loginId: hqSignupForm.adminId,
+        password: hqSignupForm.adminPassword,
+        name: hqSignupForm.adminName || hqSignupForm.name,
+        organizationId: hqOrg.orgId
+      }, true);
+
+      alert('본사 및 어드민 계정이 등록되었습니다. 로그인해주세요.');
+      setShowHqSignup(false);
+      setLoginForm({ id: hqSignupForm.adminId, password: hqSignupForm.adminPassword });
+    } catch (error: any) {
+      alert(error.message || '등록에 실패했습니다.');
+    }
   };
 
   const addToCart = (product: Item) => {
@@ -404,23 +439,63 @@ export default function App() {
             <h1 className="text-2xl font-bold tracking-tight pt-2">체인ON본부</h1>
             <p className="text-gray-400 text-sm font-medium">가맹점 및 본사 통합 관리 솔루션</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 ml-1">아이디</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input type="text" placeholder="아이디" className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={loginForm.id} onChange={(e) => setLoginForm({ ...loginForm, id: e.target.value })} />
+
+          {showHqSignup ? (
+            <form onSubmit={handleHqSignup} className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 ml-1">본사 정보</label>
+                  <input type="text" placeholder="본사 이름" className="w-full px-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={hqSignupForm.name} onChange={(e) => setHqSignupForm({ ...hqSignupForm, name: e.target.value })} />
+                  <input type="text" placeholder="본사 주소" className="w-full px-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={hqSignupForm.address} onChange={(e) => setHqSignupForm({ ...hqSignupForm, address: e.target.value })} />
+                </div>
+                <div className="space-y-2 pt-2 border-t border-gray-100">
+                  <label className="text-xs font-bold text-gray-500 ml-1">관리자 계정</label>
+                  <input type="text" placeholder="관리자 이름" className="w-full px-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={hqSignupForm.adminName} onChange={(e) => setHqSignupForm({ ...hqSignupForm, adminName: e.target.value })} />
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input type="text" placeholder="아이디" className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={hqSignupForm.adminId} onChange={(e) => setHqSignupForm({ ...hqSignupForm, adminId: e.target.value })} />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input type="password" placeholder="비밀번호" className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={hqSignupForm.adminPassword} onChange={(e) => setHqSignupForm({ ...hqSignupForm, adminPassword: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+              <div className="pt-4 space-y-3">
+                <button type="submit" className="w-full py-4 bg-brand-red text-white font-bold rounded-2xl hover:bg-brand-red/90 transition-all shadow-lg shadow-brand-red/20 active:scale-[0.98]">본사 등록하기</button>
+                <button type="button" onClick={() => setShowHqSignup(false)} className="w-full py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition-all active:scale-[0.98]">돌아가기</button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-6">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 ml-1">아이디</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input type="text" placeholder="아이디" className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={loginForm.id} onChange={(e) => setLoginForm({ ...loginForm, id: e.target.value })} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-500 ml-1">비밀번호</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input type="password" placeholder="비밀번호" className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+                  </div>
+                </div>
+                <button type="submit" className="w-full py-4 bg-brand-red text-white font-bold rounded-2xl hover:bg-brand-red/90 transition-all shadow-lg shadow-brand-red/20 active:scale-[0.98]">로그인</button>
+              </form>
+              
+              <div className="text-center">
+                <button 
+                  onClick={() => setShowHqSignup(true)}
+                  className="text-sm font-bold text-gray-400 hover:text-brand-red transition-colors flex items-center justify-center gap-1 mx-auto"
+                >
+                  본사 계정이 필요하신가요? <ChevronRight size={16} />
+                </button>
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-500 ml-1">비밀번호</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input type="password" placeholder="비밀번호" className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border-none outline-none text-sm font-medium focus:ring-2 focus:ring-brand-red/10 transition-all" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
-              </div>
-            </div>
-            <button type="submit" className="w-full py-4 bg-brand-red text-white font-bold rounded-2xl hover:bg-brand-red/90 transition-all shadow-lg shadow-brand-red/20 active:scale-[0.98]">로그인</button>
-          </form>
+          )}
         </motion.div>
       </div>
     );

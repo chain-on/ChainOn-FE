@@ -185,6 +185,11 @@ export const api = {
   // --- Organization Management ---
   org: {
     list: () => request<Franchise[]>('/admin/franchises', { method: 'GET' }),
+    createHeadquarter: (body: { name: string; address: string }) =>
+      request<Franchise>('/org/parent', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     create: (body: { name: string; address: string; parentId: number }) =>
       request<Franchise>('/org/child', {
         method: 'POST',
